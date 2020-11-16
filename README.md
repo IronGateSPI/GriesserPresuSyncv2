@@ -9,5 +9,5 @@ Es un Worker netcore que se puede ejecutar como servicio. Recupera de la api de 
 Para poder generar un fichero EXE del proyecto ejecutar:
 
 ```
-dotnet publish --self-contained --configuration Release --runtime win-x64
+dotnet publish --self-contained --configuration Release --runtime win-x64 /p:PublishSingleFile=true
 ```
