@@ -6,12 +6,29 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Migrations\20201116173409_InitialCreate.cs" />
+    <Compile Remove="Migrations\20201116173409_InitialCreate.Designer.cs" />
+    <Compile Remove="Migrations\20201116174250_InitialCreate.cs" />
+    <Compile Remove="Migrations\20201116174250_InitialCreate.Designer.cs" />
+    <Compile Remove="Migrations\20201116211616_InitialSeed.cs" />
+    <Compile Remove="Migrations\20201116211616_InitialSeed.Designer.cs" />
+    <Compile Remove="Migrations\20201116214438_InitialSeed.cs" />
+    <Compile Remove="Migrations\20201116214438_InitialSeed.Designer.cs" />
+    <Compile Remove="Migrations\20201116215201_InitialSeed.cs" />
+    <Compile Remove="Migrations\20201116215201_InitialSeed.Designer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.9" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.1.9" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Models\" />
+    <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
   </ItemGroup>
 </Project>

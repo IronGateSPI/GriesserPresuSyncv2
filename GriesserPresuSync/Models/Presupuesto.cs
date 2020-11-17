@@ -3,7 +3,7 @@ namespace GriesserPresuSync.Models
 {
     public class Presupuesto
     {
-        public string id_budget { get; set; }
+        public int id_budget { get; set; }
         public DateTime date_created { get; set; }
         public string code_product { get; set; }
         public string presupuesto { get; set; }

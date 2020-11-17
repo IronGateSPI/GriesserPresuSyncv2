@@ -18,8 +18,11 @@ namespace GriesserPresuSync.Controllers
             _syncSettings = syncSettings;
         }
 
-        public async Task<T> GetAsync<T>()
+        public async Task<T> GetAsync<T>(int initialId = -1)
         {
+            if (initialId != -1)
+                _syncSettings.id_from = initialId;
+
             string queryUrl = GetQueryUrl();
             HttpResponseMessage response = await client.GetAsync(queryUrl);
             if(response.IsSuccessStatusCode)
@@ -36,6 +39,8 @@ namespace GriesserPresuSync.Controllers
             queryString.Add("details", _syncSettings.details.ToString());
             queryString.Add("regs_per_page", _syncSettings.regs_per_page.ToString());
             queryString.Add("page", _syncSettings.page.ToString());
+            queryString.Add("id_from", _syncSettings.id_from.ToString());
+
             return _syncSettings.ApiUrl + "/?" + queryString.ToString();
         }
     }

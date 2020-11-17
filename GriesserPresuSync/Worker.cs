@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GriesserPresuSync.Controllers;
 using GriesserPresuSync.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -15,12 +16,15 @@ namespace GriesserPresuSync
         private readonly ILogger<Worker> _logger;
         private readonly GriesserSyncSettings _syncSettings;
         private MiGriesserApiController _apiController;
+        private MiGriesserContext _dbContext;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
-        public Worker(ILogger<Worker> logger, GriesserSyncSettings settings)
+        public Worker(ILogger<Worker> logger, GriesserSyncSettings settings, IServiceScopeFactory serviceScopeFactory)
         {
             _logger = logger;
             _syncSettings = settings;
             _apiController = new MiGriesserApiController(_syncSettings);
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,7 +32,7 @@ namespace GriesserPresuSync
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                GriesserSyncPresuController presuController = new GriesserSyncPresuController(_apiController, _logger);
+                GriesserSyncPresuController presuController = new GriesserSyncPresuController(_apiController, _logger, _serviceScopeFactory);
                 presuController.syncPresupuestos();
                 await Task.Delay(10000, stoppingToken);
             }
