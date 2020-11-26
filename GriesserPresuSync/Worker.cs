@@ -16,7 +16,6 @@ namespace GriesserPresuSync
         private readonly ILogger<Worker> _logger;
         private readonly GriesserSyncSettings _syncSettings;
         private MiGriesserApiController _apiController;
-        private MiGriesserContext _dbContext;
         private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public Worker(ILogger<Worker> logger, GriesserSyncSettings settings, IServiceScopeFactory serviceScopeFactory)
