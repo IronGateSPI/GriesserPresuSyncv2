@@ -87,7 +87,7 @@ namespace GriesserPresuSync.Controllers
                 newLine.IdLinea = presupuesto.presupuesto + "-" + l.pos +" - " + presupuesto.id_budget;
                 newLine.IdBudget = presupuesto.id_budget;
                 newLine.date = presupuesto.date_created;
-                newLine.Articulo = presupuesto.code_product;
+                newLine.Articulo = presupuesto.cod_product;
                 newLine.NPresupuesto = presupuesto.presupuesto;
                 newLine.NPersianas = presupuesto.num_persianas;
                 newLine.TotalSup = presupuesto.total_sup;
