@@ -4,14 +4,16 @@ using GriesserPresuSync.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GriesserPresuSync.Migrations
 {
     [DbContext(typeof(MiGriesserContext))]
-    partial class MiGriesserContextModelSnapshot : ModelSnapshot
+    [Migration("20201223101304_NuevosCampos")]
+    partial class NuevosCampos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,8 +56,8 @@ namespace GriesserPresuSync.Migrations
                     b.Property<string>("NPresupuesto")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("POS")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("POS")
+                        .HasColumnType("int");
 
                     b.Property<float>("PUnidad")
                         .HasColumnType("real");
@@ -90,30 +92,6 @@ namespace GriesserPresuSync.Migrations
                     b.Property<DateTime>("date")
                         .HasColumnType("datetime2");
 
-                    b.Property<float?>("importe_automatismos")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("importe_color")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("importe_incrementos")
-                        .HasColumnType("real");
-
-                    b.Property<float>("importe_lineas")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("importe_tapas_y_testeros")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("importe_tejido")
-                        .HasColumnType("real");
-
-                    b.Property<float>("importe_total")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("importe_transporte")
-                        .HasColumnType("real");
-
                     b.Property<float>("price")
                         .HasColumnType("real");
 
@@ -121,9 +99,6 @@ namespace GriesserPresuSync.Migrations
                         .HasColumnType("real");
 
                     b.Property<float>("price_testero")
-                        .HasColumnType("real");
-
-                    b.Property<float?>("superficie")
                         .HasColumnType("real");
 
                     b.Property<string>("tipo")

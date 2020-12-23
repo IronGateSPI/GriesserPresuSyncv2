@@ -4,14 +4,16 @@ using GriesserPresuSync.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GriesserPresuSync.Migrations
 {
     [DbContext(typeof(MiGriesserContext))]
-    partial class MiGriesserContextModelSnapshot : ModelSnapshot
+    [Migration("20201223103902_CamposNulos")]
+    partial class CamposNulos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,8 +56,8 @@ namespace GriesserPresuSync.Migrations
                     b.Property<string>("NPresupuesto")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("POS")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("POS")
+                        .HasColumnType("int");
 
                     b.Property<float>("PUnidad")
                         .HasColumnType("real");

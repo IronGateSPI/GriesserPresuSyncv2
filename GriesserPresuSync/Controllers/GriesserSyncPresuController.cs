@@ -87,7 +87,7 @@ namespace GriesserPresuSync.Controllers
                 newLine.IdLinea = presupuesto.presupuesto + "-" + l.pos +" - " + presupuesto.id_budget;
                 newLine.IdBudget = presupuesto.id_budget;
                 newLine.date = presupuesto.date_created;
-                newLine.Articulo = presupuesto.cod_product;
+                newLine.Articulo = l.cod_sage;
                 newLine.NPresupuesto = presupuesto.presupuesto;
                 newLine.NPersianas = presupuesto.num_persianas;
                 newLine.TotalSup = presupuesto.total_sup;
@@ -105,6 +105,23 @@ namespace GriesserPresuSync.Controllers
                 newLine.TEUR = l.teur;
                 newLine.POS = l.pos;
                 newLine.Color = presupuesto.color;
+                // Nuevos Campos Linea
+                newLine.title = l.title;
+                newLine.price = l.price;
+                newLine.price_tapa = l.price_tapa;
+                newLine.con_testero = l.con_testero;
+                newLine.price_testero = l.price_testero;
+                newLine.tipo = l.tipo;
+                // Nuevos Campos Presupuesto
+                newLine.superficie = presupuesto.superficie;
+                newLine.importe_color = presupuesto.importe_color;
+                newLine.importe_tejido = presupuesto.importe_tejido;
+                newLine.importe_lineas = presupuesto.importe_lineas;
+                newLine.importe_tapas_y_testeros = presupuesto.importe_tapas_y_testeros;
+                newLine.importe_automatismos = presupuesto.importe_automatismos;
+                newLine.importe_incrementos = presupuesto.importe_incrementos;
+                newLine.importe_transporte = presupuesto.importe_transporte;
+                newLine.importe_total = presupuesto.importe_total;
 
                 await saveLine(newLine);
             }

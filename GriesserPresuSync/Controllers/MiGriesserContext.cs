@@ -32,7 +32,7 @@ namespace GriesserPresuSync.Controllers
 			public int IdBudget { get; set; }
 			public DateTime date { get; set; }
 			public string Articulo { get; set; }
-			public string Cliente { get; set; }
+			//public string Cliente { get; set; }
 			public string NPresupuesto { get; set; }
 			public int NPersianas { get; set; }
 			public float TotalSup { get; set; }
@@ -40,20 +40,36 @@ namespace GriesserPresuSync.Controllers
 			public float TotalLargo { get; set; }
 			public float LargoTapas { get; set; }
 			public int TotalTapas { get; set; }
-			public string Embalaje { get; set; }
-			public int POS { get; set; }
+			//public string Embalaje { get; set; }
+			public string POS { get; set; }
 			public float BK { get; set; }
 			public float HL { get; set; }
-
 			public string Accion { get; set; }
 			public float TL { get; set; }
 			public int Uni { get; set; }
 			public float PUnidad { get; set; }
 			public float PUnidad2 { get; set; }
 			public float TEUR { get; set; }
-			public string POS1 { get; set; }
+			//public string POS1 { get; set; }
 			public string Color { get; set; }
 			public bool IsSincronized { get; set; }
+			// Nuevos Campos Linea
+			public string title { get; set; }
+			public float price { get; set; }
+			public float price_tapa { get; set; }
+			public string con_testero { get; set; }
+			public float price_testero { get; set; }
+			public string tipo { get; set; }
+			// Nuevos Campos Presupuesto
+			public float? superficie { get; set; }
+			public float? importe_color { get; set; }
+			public float? importe_tejido { get; set; }
+			public float importe_lineas { get; set; }
+			public float? importe_tapas_y_testeros { get; set; }
+			public float? importe_automatismos { get; set; }
+			public float? importe_incrementos { get; set; }
+			public float? importe_transporte { get; set; }
+			public float importe_total { get; set; }
 		}
     }
 }
