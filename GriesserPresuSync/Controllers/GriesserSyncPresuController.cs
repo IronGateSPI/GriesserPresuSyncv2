@@ -81,10 +81,12 @@ namespace GriesserPresuSync.Controllers
 
             _logger.LogInformation($"Inicio de sincronización del presupuesto {presupuesto.id_budget} - {presupuesto.presupuesto}");
 
+            var num_linea = 0;
             foreach(var l in presupuesto.line_n)
             {
                 IG_Presupuesto_LineaSincronizacion newLine = new IG_Presupuesto_LineaSincronizacion();
-                newLine.IdLinea = presupuesto.presupuesto + "-" + l.pos +" - " + presupuesto.id_budget;
+                newLine.IdLinea = presupuesto.presupuesto + "-" + num_linea +"-" + presupuesto.id_budget;
+                newLine.Cliente = presupuesto.cod_client;
                 newLine.IdBudget = presupuesto.id_budget;
                 newLine.date = presupuesto.date_created;
                 newLine.Articulo = l.cod_sage;
@@ -124,6 +126,7 @@ namespace GriesserPresuSync.Controllers
                 newLine.importe_total = presupuesto.importe_total;
 
                 await saveLine(newLine);
+                num_linea++;
             }
 
            

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using GriesserPresuSync.Controllers;
 using GriesserPresuSync.Models;
@@ -13,26 +16,48 @@ namespace GriesserPresuSync
 {
     public class Program
     {
+
+        public static readonly IConfiguration configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+               .Build();
+
+
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();
         }
 
+        /** Recuperar el path de ejecucción */
+        private static string GetBasePath()
+        {
+            using var processModule = Process.GetCurrentProcess().MainModule;
+            return Path.GetDirectoryName(processModule?.FileName);
+        }
+
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .UseWindowsService()
+                .ConfigureAppConfiguration((hostContext, config) =>
+                {
+                    try
+                    {
+                        config.SetBasePath(GetBasePath());
+                        config.AddJsonFile("appsettings.json");
+                    } catch(Exception e)
+                    {
+
+                    }
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
-                    IConfiguration configuration = hostContext.Configuration;
-                    GriesserSyncSettings syncSettings = configuration.GetSection("GriesserSyncSettings").Get<GriesserSyncSettings>();
-                    services.AddDbContext<MiGriesserContext>(opts =>
-                        opts.UseSqlServer(syncSettings.SageConnectionString));
-                    services.AddSingleton(syncSettings);
-                    
                     services.AddHostedService<Worker>();
 
-                    MiGriesserDataStore.Instance.SyncSettings = syncSettings;
-
+                IConfiguration c = hostContext.Configuration;
+                services.AddDbContext<MiGriesserContext>(opts => {
+                    var connectionString = c.GetConnectionString("DefaultConnection");
+                    opts.UseSqlServer(connectionString);
                 });
+                })
+                .UseWindowsService();
     }
 }

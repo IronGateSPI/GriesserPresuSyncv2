@@ -32,7 +32,7 @@ namespace GriesserPresuSync.Controllers
 			public int IdBudget { get; set; }
 			public DateTime date { get; set; }
 			public string Articulo { get; set; }
-			//public string Cliente { get; set; }
+			public string? Cliente { get; set; }
 			public string NPresupuesto { get; set; }
 			public int NPersianas { get; set; }
 			public float TotalSup { get; set; }

@@ -109,4 +109,133 @@ VALUES (N'20201223101304_NuevosCampos', N'3.1.9');
 
 GO
 
-Q
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_automatismos] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_color] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_incrementos] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_lineas] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_tapas_y_testeros] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_tejido] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_total] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [importe_transporte] real NOT NULL DEFAULT CAST(0 AS real);
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [superficie] real NULL;
+
+GO
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20201223103312_CamposPresupuesto', N'3.1.9');
+
+GO
+
+DECLARE @var3 sysname;
+SELECT @var3 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_transporte');
+IF @var3 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var3 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_transporte] real NULL;
+
+GO
+
+DECLARE @var4 sysname;
+SELECT @var4 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_tejido');
+IF @var4 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var4 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_tejido] real NULL;
+
+GO
+
+DECLARE @var5 sysname;
+SELECT @var5 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_tapas_y_testeros');
+IF @var5 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var5 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_tapas_y_testeros] real NULL;
+
+GO
+
+DECLARE @var6 sysname;
+SELECT @var6 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_incrementos');
+IF @var6 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var6 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_incrementos] real NULL;
+
+GO
+
+DECLARE @var7 sysname;
+SELECT @var7 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_color');
+IF @var7 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var7 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_color] real NULL;
+
+GO
+
+DECLARE @var8 sysname;
+SELECT @var8 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'importe_automatismos');
+IF @var8 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var8 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [importe_automatismos] real NULL;
+
+GO
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20201223103902_CamposNulos', N'3.1.9');
+
+GO
+
+DECLARE @var9 sysname;
+SELECT @var9 = [d].[name]
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[IG_GriesserSyncPresupuestos]') AND [c].[name] = N'POS');
+IF @var9 IS NOT NULL EXEC(N'ALTER TABLE [IG_GriesserSyncPresupuestos] DROP CONSTRAINT [' + @var9 + '];');
+ALTER TABLE [IG_GriesserSyncPresupuestos] ALTER COLUMN [POS] nvarchar(max) NULL;
+
+GO
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20201223110853_PosToString', N'3.1.9');
+
+GO
+
+ALTER TABLE [IG_GriesserSyncPresupuestos] ADD [Cliente] nvarchar(max) NULL;
+
+GO
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20201228143758_AddCliente', N'3.1.9');
+
+GO
+

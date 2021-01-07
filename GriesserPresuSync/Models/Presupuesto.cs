@@ -4,6 +4,7 @@ namespace GriesserPresuSync.Models
     public class Presupuesto
     {
         public int id_budget { get; set; }
+        public string? cod_client { get; set; }
         public DateTime date_created { get; set; }
         public string presupuesto { get; set; }
         public int num_persianas { get; set; }

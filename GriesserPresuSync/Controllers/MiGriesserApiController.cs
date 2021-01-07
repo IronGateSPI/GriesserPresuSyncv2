@@ -9,13 +9,13 @@ namespace GriesserPresuSync.Controllers
 {
     public class MiGriesserApiController
     {
-        private readonly GriesserSyncSettings _syncSettings;
-
+       
         static HttpClient client = new HttpClient();
+        private GriesserSyncSettings _syncSettings; 
 
-        public MiGriesserApiController(GriesserSyncSettings syncSettings)
+        public MiGriesserApiController()
         {
-            _syncSettings = syncSettings;
+            _syncSettings = new GriesserSyncSettings();
         }
 
         public async Task<T> GetAsync<T>(int initialId = -1)

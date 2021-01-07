@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GriesserPresuSync.Controllers;
 using GriesserPresuSync.Models;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,15 +13,13 @@ namespace GriesserPresuSync
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
-        private readonly GriesserSyncSettings _syncSettings;
         private MiGriesserApiController _apiController;
         private readonly IServiceScopeFactory _serviceScopeFactory;
 
-        public Worker(ILogger<Worker> logger, GriesserSyncSettings settings, IServiceScopeFactory serviceScopeFactory)
+        public Worker(ILogger<Worker> logger, IServiceScopeFactory serviceScopeFactory)
         {
             _logger = logger;
-            _syncSettings = settings;
-            _apiController = new MiGriesserApiController(_syncSettings);
+            _apiController = new MiGriesserApiController();
             _serviceScopeFactory = serviceScopeFactory;
         }
 
