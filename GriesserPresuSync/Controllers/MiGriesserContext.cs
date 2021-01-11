@@ -70,6 +70,8 @@ namespace GriesserPresuSync.Controllers
 			public float? importe_incrementos { get; set; }
 			public float? importe_transporte { get; set; }
 			public float importe_total { get; set; }
+			//weinor family
+			public bool weinor_family { get; set; }
 		}
     }
 }
