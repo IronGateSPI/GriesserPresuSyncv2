@@ -9,6 +9,7 @@ namespace GriesserPresuSync.Models
         public DateTime date_created { get; set; }
         public string presupuesto { get; set; }
         public int num_persianas { get; set; }
+        public string accionamiento { get; set; }
         public float total_sup { get; set; }
         public float total_ancho { get; set; }
         public float total_largo { get; set; }

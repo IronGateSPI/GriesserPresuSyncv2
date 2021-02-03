@@ -43,7 +43,8 @@ namespace GriesserPresuSync.Controllers
 			//public string Embalaje { get; set; }
 			public string POS { get; set; }
 			public float BK { get; set; }
-			public float HL { get; set; }
+			public float? HL { get; set; }
+			public float? GH { get; set; }
 			public string Accion { get; set; }
 			public float TL { get; set; }
 			public int Uni { get; set; }
@@ -72,6 +73,8 @@ namespace GriesserPresuSync.Controllers
 			public float importe_total { get; set; }
 			//weinor family
 			public bool weinor_family { get; set; }
+			//Modificaciones campos nuevos
+			public string accionamiento { get; set; }
 		}
     }
 }

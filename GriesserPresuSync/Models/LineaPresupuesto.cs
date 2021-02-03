@@ -8,7 +8,8 @@ namespace GriesserPresuSync.Models
         public string con_testero { get; set; }
         public int bk { get; set; }
         public string cod_sage { get; set; }
-        public int hl { get; set; }
+        public int? hl { get; set; }
+        public float? gh { get; set; }
         public string pos { get; set; }
         public float price { get; set; }
         public float price_per_unit { get; set; }
