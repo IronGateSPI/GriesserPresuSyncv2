@@ -126,6 +126,9 @@ namespace GriesserPresuSync.Controllers
                 newLine.importe_total = presupuesto.importe_total;
                 //weinor_family
                 newLine.weinor_family = presupuesto.weinor_family;
+                //mas campos
+                newLine.GH = l.gh;
+                newLine.accionamiento = presupuesto.accionamiento;
 
                 await saveLine(newLine);
                 num_linea++;
