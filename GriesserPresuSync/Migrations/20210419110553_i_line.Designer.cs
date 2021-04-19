@@ -4,14 +4,16 @@ using GriesserPresuSync.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GriesserPresuSync.Migrations
 {
     [DbContext(typeof(MiGriesserContext))]
-    partial class MiGriesserContextModelSnapshot : ModelSnapshot
+    [Migration("20210419110553_i_line")]
+    partial class i_line
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

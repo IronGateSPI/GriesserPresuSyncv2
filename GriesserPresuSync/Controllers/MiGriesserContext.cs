@@ -75,6 +75,8 @@ namespace GriesserPresuSync.Controllers
 			public bool weinor_family { get; set; }
 			//Modificaciones campos nuevos
 			public string accionamiento { get; set; }
+			//Campo i_line
+			public int i_line { get; set; }
 		}
     }
 }

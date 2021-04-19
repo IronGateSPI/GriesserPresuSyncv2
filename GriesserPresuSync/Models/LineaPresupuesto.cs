@@ -22,5 +22,7 @@ namespace GriesserPresuSync.Models
         public int tl { get; set; }
         public float total { get; set; }
         public int units { get; set; }  
+
+        public int i_line { get; set; }
     }
 }
