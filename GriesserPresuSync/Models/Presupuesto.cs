@@ -5,6 +5,7 @@ namespace GriesserPresuSync.Models
     {
         public int id_budget { get; set; }
         public string? cod_client { get; set; }
+        public string client_ref { get; set; }
         public bool weinor_family { get; set; }
         public DateTime date_created { get; set; }
         public string presupuesto { get; set; }
