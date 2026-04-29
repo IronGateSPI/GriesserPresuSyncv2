@@ -130,6 +130,7 @@ namespace GriesserPresuSync.Controllers
                 newLine.GH = l.gh;
                 newLine.accionamiento = presupuesto.accionamiento;
                 newLine.i_line = l.i_line;
+                newLine.Client_ref = presupuesto.client_ref;
                 await saveLine(newLine);
                 num_linea++;
             }

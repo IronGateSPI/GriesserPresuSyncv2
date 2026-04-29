@@ -77,6 +77,7 @@ namespace GriesserPresuSync.Controllers
 			public string accionamiento { get; set; }
 			//Campo i_line
 			public int i_line { get; set; }
-		}
+            public string? Client_ref { get; set; }
+        }
     }
 }
