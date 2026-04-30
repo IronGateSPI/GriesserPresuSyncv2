@@ -5,6 +5,13 @@
     <UserSecretsId>dotnet-GriesserPresuSync-D9E2A059-D91F-4698-9402-EA0935BC6858</UserSecretsId>
   </PropertyGroup>
 
+    <ItemGroup>
+    <!-- El proyecto de tests vive dentro del repositorio pero NO debe compilarse
+         con el Worker. Tiene su propio .csproj. -->
+    <Compile Remove="Tests\**\*.cs" />
+    <None Remove="Tests\**\*" />
+  </ItemGroup>
+  
   <ItemGroup>
     <Compile Remove="Migrations\20201116173409_InitialCreate.cs" />
     <Compile Remove="Migrations\20201116173409_InitialCreate.Designer.cs" />
@@ -29,6 +36,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.1.9" />
+	<PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="3.1.9" />
     <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
   </ItemGroup>
 </Project>

@@ -1,20 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Reflection;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using GriesserPresuSync.Controllers;
-using GriesserPresuSync.Models;
-using GriesserPresuSync.Services;  // ← AÑADIR ESTA LÍNEA
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using MiGriesserMallorquinas;  // ← AÑADIR para BudgetSyncProcess
-using MiGriesserMallorquinas.Services;  // ← AÑADIR para BudgetService
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.EventLog;
 
 namespace GriesserPresuSync
 {
@@ -24,16 +18,19 @@ namespace GriesserPresuSync
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                .Build();
+
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();
         }
-        /** Recuperar el path de ejecucción */
+
+        /// <summary>Recupera el path de ejecución (para Windows Service)</summary>
         private static string GetBasePath()
         {
             using var processModule = Process.GetCurrentProcess().MainModule;
             return Path.GetDirectoryName(processModule?.FileName);
         }
+
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostContext, config) =>
@@ -48,27 +45,23 @@ namespace GriesserPresuSync
                         // Ignoramos: en modo CLI ya hay base path configurado
                     }
                 })
+                .ConfigureLogging((hostContext, logging) =>
+                {
+                    // Cuando el proceso corre como Servicio de Windows, no hay
+                    // consola disponible, así que conviene escribir al Visor
+                    // de Eventos. AddEventLog sólo se activa en Windows; en
+                    // dev/Linux es un no-op silencioso.
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        logging.AddEventLog(new EventLogSettings
+                        {
+                            SourceName = "GriesserPresuSync",
+                            LogName = "Application"
+                        });
+                    }
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
-                    // === CÓDIGO ORIGINAL (NO TOCAR) ===
-                    /*
-                    services.AddHostedService<Worker>();
-                    IConfiguration c = hostContext.Configuration;
-                    services.AddDbContext<MiGriesserContext>(opts => {
-                        var connectionString = c.GetConnectionString("DefaultConnection");
-                        opts.UseSqlServer(connectionString);
-                    });
-
-                    services.AddSingleton<BudgetSyncProcess>(sp =>
-                    {
-                        var connectionString = hostContext.Configuration.GetConnectionString("DefaultConnection");
-                        var apiUrl = hostContext.Configuration["MallorquinasSyncSettings:ApiUrl"];
-                        return new BudgetSyncProcess(connectionString, apiUrl);
-                    });
-
-                    services.AddSingleton<HttpClient>();  // Sin paquete adicional
-                    services.AddHostedService<BudgetSyncWorker>();
-                    */
                     IConfiguration c = hostContext.Configuration;
 
                     // === DbContext único: presupuestos + mallorquinas ===
