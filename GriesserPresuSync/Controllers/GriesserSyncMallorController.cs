@@ -98,22 +98,33 @@ namespace GriesserPresuSync.Controllers
 
         /// <summary>
         /// Devuelve el mayor id_budget ya sincronizado, o -1 si no hay nada.
+        /// Usamos MaxAsync con proyección a int? para que EF emita
+        /// SELECT MAX(id_budget) FROM IG_GriesserSyncMallorquinas
+        /// y NO materialice la entidad completa: así evitamos el clásico
+        /// SqlNullValueException si una columna mapeada a tipo valor no anulable
+        /// contiene NULL en BD.
         /// </summary>
         private async Task<int> GetLastSyncID()
         {
-            using (var scope = _serviceScopeFactory.CreateScope())
+            try
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
-                var lastInsertedId = await dbContext.IG_GriesserSyncMallorquinas
-                    .OrderByDescending(l => l.id_budget)
-                    .ToListAsync<IG_Mallorquina_Cabecera>();
-
-                if (lastInsertedId != null && lastInsertedId.Count > 0)
+                using (var scope = _serviceScopeFactory.CreateScope())
                 {
-                    var lastId = lastInsertedId[0].id_budget;
-                    _logger.LogInformation($"El último ID de mallorquina sincronizado es: {lastId}");
-                    return lastId;
+                    var dbContext = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
+                    var maxId = await dbContext.IG_GriesserSyncMallorquinas
+                        .Select(l => (int?)l.id_budget)
+                        .MaxAsync();
+
+                    if (maxId.HasValue)
+                    {
+                        _logger.LogInformation($"El último ID de mallorquina sincronizado es: {maxId.Value}");
+                        return maxId.Value;
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "No se pudo obtener el último ID de mallorquina; se usará -1");
             }
             return -1;
         }
@@ -152,11 +163,13 @@ namespace GriesserPresuSync.Controllers
 
                 try
                 {
-                    // Idempotencia
-                    var cabExistente = await dbContext.IG_GriesserSyncMallorquinas
-                        .SingleOrDefaultAsync(c => c.IdLinea == idLinea);
+                    // Idempotencia con AnyAsync (EF emite EXISTS(...) y NO
+                    // materializa la cabecera): así no fallamos si la fila
+                    // existente tuviera NULL en alguna columna no anulable.
+                    var cabExiste = await dbContext.IG_GriesserSyncMallorquinas
+                        .AnyAsync(c => c.IdLinea == idLinea);
 
-                    if (cabExistente != null)
+                    if (cabExiste)
                     {
                         _logger.LogInformation($"La mallorquina {idLinea} ya existe; se omite");
                         return;
@@ -276,12 +289,3 @@ namespace GriesserPresuSync.Controllers
         }
     }
 }
-/*                finally
-                {
-    tx?.Dispose();
-}
-            }
-        }
-    }
-}
-*/

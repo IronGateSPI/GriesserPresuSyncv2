@@ -42,19 +42,21 @@ namespace GriesserPresuSync.Controllers
                 var presupuestos = await GetPresupuestosAsync(initialId);
 
                 _logger.LogInformation($"Recuperados {presupuestos.Length} presupuestos");
-    
-                foreach(var presupuesto in presupuestos)
+
+                foreach (var presupuesto in presupuestos)
                 {
                     try
                     {
                         guardaPresupuesto(presupuesto);
-                    } catch(Exception e)
+                    }
+                    catch (Exception e)
                     {
                         _logger.LogError(e.Message);
                     }
                 }
 
-            } catch(Exception e)
+            }
+            catch (Exception e)
             {
                 _logger.LogError(e.Message);
             }
@@ -62,16 +64,32 @@ namespace GriesserPresuSync.Controllers
 
         private async Task<int> GetLastSyncID()
         {
-            using (var scope = _serviceScopeFactory.CreateScope())
+            // IMPORTANTE: usamos MaxAsync con cast a int? para que EF traduzca a
+            //   SELECT MAX(IdBudget) FROM IG_GriesserSyncPresupuestos
+            // y NO materialice la entidad completa. Así evitamos
+            // SqlNullValueException si alguna columna no anulable contiene NULL
+            // (filas legacy, columnas añadidas a mano, etc.) y además es mucho
+            // más eficiente que traer todas las filas a memoria.
+            try
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
-                var lastInsertedId = await dbContext.IG_GriesserSyncPresupuestos.OrderByDescending(l => l.IdBudget).ToListAsync<IG_Presupuesto_LineaSincronizacion>();
-                if(lastInsertedId != null && lastInsertedId.Count > 0)
+                using (var scope = _serviceScopeFactory.CreateScope())
                 {
-                    var lastId = lastInsertedId[0].IdBudget;
-                    _logger.LogInformation($"El último ID sincronizado es: {lastId}");
-                    return lastId;
+                    var dbContext = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
+                    var maxId = await dbContext.IG_GriesserSyncPresupuestos
+                        .Select(l => (int?)l.IdBudget)
+                        .MaxAsync();
+                    if (maxId.HasValue)
+                    {
+                        _logger.LogInformation($"El último ID sincronizado es: {maxId.Value}");
+                        return maxId.Value;
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                // Si no podemos leer el último ID, devolvemos -1 para arrancar
+                // desde el principio en lugar de tirar el worker.
+                _logger.LogError(e, "No se pudo obtener el último ID sincronizado; se usará -1");
             }
             return -1;
         }
@@ -82,10 +100,10 @@ namespace GriesserPresuSync.Controllers
             _logger.LogInformation($"Inicio de sincronización del presupuesto {presupuesto.id_budget} - {presupuesto.presupuesto}");
 
             var num_linea = 0;
-            foreach(var l in presupuesto.line_n)
+            foreach (var l in presupuesto.line_n)
             {
                 IG_Presupuesto_LineaSincronizacion newLine = new IG_Presupuesto_LineaSincronizacion();
-                newLine.IdLinea = presupuesto.presupuesto + "-" + num_linea +"-" + presupuesto.id_budget;
+                newLine.IdLinea = presupuesto.presupuesto + "-" + num_linea + "-" + presupuesto.id_budget;
                 newLine.Cliente = presupuesto.cod_client;
                 newLine.IdBudget = presupuesto.id_budget;
                 newLine.date = presupuesto.date_created;
@@ -135,7 +153,7 @@ namespace GriesserPresuSync.Controllers
                 num_linea++;
             }
 
-           
+
 
             _logger.LogInformation($"Guardado el presupuesto {presupuesto.presupuesto} para sincronizar");
         }
@@ -146,19 +164,22 @@ namespace GriesserPresuSync.Controllers
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
 
-                var lineaExistente = await dbContext.IG_GriesserSyncPresupuestos.SingleOrDefaultAsync(e => e.IdLinea == linea.IdLinea);
+                // Comprobación de existencia con AnyAsync: EF traduce a EXISTS(...)
+                // en SQL y NO materializa la entidad. Esto evita SqlNullValueException
+                // si la fila ya guardada tiene NULL en alguna columna no anulable.
+                var existe = await dbContext.IG_GriesserSyncPresupuestos
+                    .AnyAsync(e => e.IdLinea == linea.IdLinea);
 
-                if (lineaExistente == null)
+                if (!existe)
                 {
                     dbContext.IG_GriesserSyncPresupuestos.Add(linea);
-                    dbContext.SaveChanges();
+                    await dbContext.SaveChangesAsync();
                     _logger.LogInformation($"Insertada linea {linea.IdLinea}");
-                } else
-                {
-                    _logger.LogError($"La linea {linea.IdLinea} ya existe");
                 }
-
-                
+                else
+                {
+                    _logger.LogInformation($"La linea {linea.IdLinea} ya existe; se omite");
+                }
             }
 
             return linea;
