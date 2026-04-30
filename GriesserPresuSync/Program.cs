@@ -43,13 +43,15 @@ namespace GriesserPresuSync
                         config.SetBasePath(GetBasePath());
                         config.AddJsonFile("appsettings.json");
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
+                        // Ignoramos: en modo CLI ya hay base path configurado
                     }
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
                     // === CÓDIGO ORIGINAL (NO TOCAR) ===
+                    /*
                     services.AddHostedService<Worker>();
                     IConfiguration c = hostContext.Configuration;
                     services.AddDbContext<MiGriesserContext>(opts => {
@@ -66,6 +68,19 @@ namespace GriesserPresuSync
 
                     services.AddSingleton<HttpClient>();  // Sin paquete adicional
                     services.AddHostedService<BudgetSyncWorker>();
+                    */
+                    IConfiguration c = hostContext.Configuration;
+
+                    // === DbContext único: presupuestos + mallorquinas ===
+                    services.AddDbContext<MiGriesserContext>(opts =>
+                    {
+                        var connectionString = c.GetConnectionString("DefaultConnection");
+                        opts.UseSqlServer(connectionString);
+                    });
+
+                    // === Workers ===
+                    services.AddHostedService<Worker>();
+                    services.AddHostedService<WorkerMallorquinas>();
                 })
                 .UseWindowsService();
     }
