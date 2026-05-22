@@ -132,6 +132,11 @@ namespace GriesserPresuSync.Controllers
                 newLine.con_testero = l.con_testero;
                 newLine.price_testero = l.price_testero;
                 newLine.tipo = l.tipo;
+                // Dimensiones de la tapa (decimal? -> decimal?). Si la API no envía
+                // el campo, l.altura_tapa / l.ancho_tapa serán null y se persistirán
+                // como NULL en SQL.
+                newLine.altura_tapa = l.altura_tapa;
+                newLine.ancho_tapa = l.ancho_tapa;
                 // Nuevos Campos Presupuesto
                 newLine.superficie = presupuesto.superficie;
                 newLine.importe_color = presupuesto.importe_color;

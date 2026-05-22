@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GriesserPresuSync.Controllers
 {
@@ -21,6 +22,9 @@ namespace GriesserPresuSync.Controllers
         public DbSet<IG_Mallorquina_Cabecera> IG_GriesserSyncMallorquinas { get; set; }
         public DbSet<IG_Mallorquina_Linea> IG_GriesserSyncMallorquinas_Lineas { get; set; }
         public DbSet<IG_Mallorquina_Mando> IG_GriesserSyncMallorquinas_Mandos { get; set; }
+
+        // === CLIENTES ↔ CRM (cola de cambios pendientes) ===
+        public DbSet<IG_CRM_ClientesPendiente> IG_CRM_ClientesPendientes { get; set; }
 
         public MiGriesserContext(DbContextOptions<MiGriesserContext> options) : base(options)
         {
@@ -68,7 +72,54 @@ namespace GriesserPresuSync.Controllers
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // === Clientes-CRM: cola de cambios pendientes ===
+            modelBuilder.Entity<IG_CRM_ClientesPendiente>(entity =>
+            {
+                entity.ToTable("IG_CRM_ClientesPendientes");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CodigoCliente).HasMaxLength(15).IsRequired();
+                entity.Property(e => e.Operacion).HasMaxLength(1).IsRequired();
+                entity.Property(e => e.Origen).HasMaxLength(40).IsRequired();
+                entity.Property(e => e.EstadoEnvio).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.UltimoError).HasMaxLength(2000);
+                // PayloadEnviado va a NVARCHAR(MAX) por convención EF
+            });
+
             base.OnModelCreating(modelBuilder);
+        }
+
+        // ==========================================================
+        // === ENTIDAD: Cola Clientes-CRM                          ===
+        // ==========================================================
+        /// <summary>
+        /// Cola de cambios de clientes pendientes de sincronizar con el CRM.
+        /// Alimentada por los triggers tr_Clientes_CRM_AfterIUD y
+        /// tr_ClientesImportesRiesgo_CRM_AfterIUD. Consumida por
+        /// WorkerClientesCrm.
+        /// </summary>
+        public class IG_CRM_ClientesPendiente
+        {
+            [Key]
+            public long Id { get; set; }
+            public short CodigoEmpresa { get; set; }
+            [MaxLength(15)]
+            public string CodigoCliente { get; set; }
+            /// <summary>I=Insert, U=Update, D=Delete (D no se envía, sólo histórico).</summary>
+            [MaxLength(1)]
+            public string Operacion { get; set; }
+            /// <summary>Tabla origen del cambio: 'Clientes' o 'ClientesImportesRiesgo'.</summary>
+            [MaxLength(40)]
+            public string Origen { get; set; }
+            public DateTime FechaCambio { get; set; }
+            public DateTime? FechaProcesado { get; set; }
+            /// <summary>Pendiente / Enviado / Error / Descartado.</summary>
+            [MaxLength(20)]
+            public string EstadoEnvio { get; set; }
+            public int Intentos { get; set; }
+            [MaxLength(2000)]
+            public string UltimoError { get; set; }
+            /// <summary>Snapshot del body form-urlencoded enviado al CRM. Para auditoría.</summary>
+            public string PayloadEnviado { get; set; }
         }
 
         // ==========================================================
@@ -108,6 +159,12 @@ namespace GriesserPresuSync.Controllers
             public string con_testero { get; set; }
             public float price_testero { get; set; }
             public string tipo { get; set; }
+            // Dimensiones de la tapa (decimal con precisión 10,2). Nullable para
+            // no romper filas legacy ni líneas que no incluyan el campo en la API.
+            [Column(TypeName = "decimal(10, 2)")]
+            public decimal? altura_tapa { get; set; }
+            [Column(TypeName = "decimal(10, 2)")]
+            public decimal? ancho_tapa { get; set; }
             // Nuevos Campos Presupuesto
             public float? superficie { get; set; }
             public float? importe_color { get; set; }

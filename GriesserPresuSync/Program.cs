@@ -74,6 +74,12 @@ namespace GriesserPresuSync
                     // === Workers ===
                     services.AddHostedService<Worker>();
                     services.AddHostedService<WorkerMallorquinas>();
+                    // Clientes ↔ CRM Griesser:
+                    //   - Export Sage → CRM (loop configurable, default 30s)
+                    //   - Import CRM → Sage (job nocturno a la hora configurada)
+                    // Ambos workers respetan flags EnableExport / EnableImport.
+                    services.AddHostedService<WorkerClientesCrm>();
+                    services.AddHostedService<WorkerClientesCrmImport>();
                 })
                 .UseWindowsService();
     }

@@ -4,7 +4,11 @@ namespace GriesserPresuSync.Models
     public class LineaPresupuesto
     {
         public string accion { get; set; }
-        public string altura_tapa { get; set; }
+        // altura_tapa y ancho_tapa: dimensiones de la tapa en mm/cm con decimales.
+        // Nullable para tolerar líneas antiguas que no traigan el campo y evitar
+        // SqlNullValueException al guardar / fallos de deserialización.
+        public decimal? altura_tapa { get; set; }
+        public decimal? ancho_tapa { get; set; }
         public string con_testero { get; set; }
         public int bk { get; set; }
         public string cod_sage { get; set; }
@@ -21,7 +25,7 @@ namespace GriesserPresuSync.Models
         public float teur { get; set; }
         public int tl { get; set; }
         public float total { get; set; }
-        public int units { get; set; }  
+        public int units { get; set; }
 
         public int i_line { get; set; }
     }
