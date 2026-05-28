@@ -185,10 +185,23 @@ namespace GriesserPresuSync.Controllers
                 return;
             }
 
-            // 2) PUT al CRM
+            // 2) Desglose de facturación últimos 5 años — query independiente.
+            //    Si falla, no abortamos el envío: el CRM recibirá "{}" en ese campo
+            //    y el error quedará registrado en el log para revisión.
+            try
+            {
+                payload.FacturacionDesglosada = await ConsultaDesglosadaAsync(codigoCliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"No se pudo leer desglose de facturación del cliente {codigoCliente}. Se enviará vacío.");
+                payload.FacturacionDesglosada = new Dictionary<string, Dictionary<string, decimal>>();
+            }
+
+            // 3) PUT al CRM
             var result = await _apiController.PutClienteAsync(payload);
 
-            // 3) Persistencia de resultado, transaccional
+            // 4) Persistencia de resultado, transaccional
             using (var scope = _serviceScopeFactory.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
@@ -288,19 +301,19 @@ namespace GriesserPresuSync.Controllers
 
                             return new ClienteCrmPayload
                             {
-                                CodigoCliente   = codigoCliente,
-                                Nombre          = SafeStr(reader, "nombre"),
-                                Nif             = SafeStr(reader, "nif"),
-                                TipoVia         = SafeStr(reader, "tipovia"),
-                                Direccion       = NormalizaDireccion(SafeStr(reader, "direccion")),
-                                CodigoPostal    = SafeStr(reader, "codigopostal"),
-                                Municipio       = SafeStr(reader, "municipio"),
-                                Provincia       = SafeStr(reader, "provincia"),
+                                CodigoCliente = codigoCliente,
+                                Nombre = SafeStr(reader, "nombre"),
+                                Nif = SafeStr(reader, "nif"),
+                                TipoVia = SafeStr(reader, "tipovia"),
+                                Direccion = NormalizaDireccion(SafeStr(reader, "direccion")),
+                                CodigoPostal = SafeStr(reader, "codigopostal"),
+                                Municipio = SafeStr(reader, "municipio"),
+                                Provincia = SafeStr(reader, "provincia"),
                                 FacturacionAnual = SafeDec(reader, "baseanual"),
-                                Descubierto     = SafeDec(reader, "descubierto"),
-                                CyC             = SafeDec(reader, "cyc"),
-                                CyCDescubierto  = SafeDec(reader, "cycdescubierto"),
-                                Descuento       = SafeDec(reader, "descuento")
+                                Descubierto = SafeDec(reader, "descubierto"),
+                                CyC = SafeDec(reader, "cyc"),
+                                CyCDescubierto = SafeDec(reader, "cycdescubierto"),
+                                Descuento = SafeDec(reader, "descuento")
                             };
                         }
                     }
@@ -355,6 +368,116 @@ WHERE cli.CodigoEmpresa            = @empresa
   AND cli.CodigoCategoriaCliente_  = 'CLI'
   AND cli.zzpartner                = -1
   AND cli.CodigoCliente            = @codigo;
+";
+
+        // ---------------------------------------------------------------
+        // Consulta desglose — ADO.NET igual que ConsultaClienteAsync
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Devuelve la facturación desglosada por ejercicio-mes y artículo
+        /// de los últimos 5 años para el cliente indicado.
+        /// Estructura resultado: { "2025-01": { "METV": 1234, ... }, ... }
+        /// Si no hay datos devuelve diccionario vacío (nunca null).
+        /// DescripcionArticulo se trae de Sage pero no se envía al CRM
+        /// (el formato de la API solo admite código → unidades).
+        /// </summary>
+        private async Task<Dictionary<string, Dictionary<string, decimal>>>
+            ConsultaDesglosadaAsync(string codigoCliente)
+        {
+            var resultado = new Dictionary<string, Dictionary<string, decimal>>();
+
+            using (var scope = _serviceScopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
+                var conn = db.Database.GetDbConnection();
+
+                var huboQueAbrir = conn.State != System.Data.ConnectionState.Open;
+                if (huboQueAbrir) await conn.OpenAsync();
+
+                try
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = SqlConsultaDesglose;
+                        cmd.CommandType = System.Data.CommandType.Text;
+
+                        AddParam(cmd, "@empresa", System.Data.DbType.Int16, _settings.CodigoEmpresa);
+                        AddParam(cmd, "@codigo", System.Data.DbType.String, codigoCliente);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var ejercicio = Convert.ToInt32(reader["ejercicio"]);
+                                var mes = Convert.ToInt32(reader["mes"]);
+                                var articulo = SafeStr(reader, "codarticulo");
+                                //var unidades = SafeDec(reader, "unidades") ?? 0m;
+                                var baseimponible = SafeDec(reader, "baseimponible") ?? 0m;
+
+                                if (string.IsNullOrWhiteSpace(articulo)) continue;
+
+                                var clave = $"{ejercicio}-{mes:D2}";
+                                if (!resultado.TryGetValue(clave, out var mesDict))
+                                {
+                                    mesDict = new Dictionary<string, decimal>();
+                                    resultado[clave] = mesDict;
+                                }
+                                // Si el mismo artículo aparece más de una vez en el mes,
+                                // acumulamos (no debería ocurrir por el GROUP BY, pero por robustez).
+                                if (mesDict.TryGetValue(articulo, out var acum))
+                                    mesDict[articulo] = acum + baseimponible;
+                                else
+                                    mesDict[articulo] = baseimponible;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (huboQueAbrir) conn.Close();
+                }
+            }
+
+            return resultado;
+        }
+
+        /// <summary>
+        /// Albaranes facturados (NumeroFactura != 0) de los últimos 5 años,
+        /// agrupados por ejercicio, mes, artículo y cliente.
+        /// Columnas devueltas: ejercicio, mes, codarticulo, unidades.
+        /// (DescripcionArticulo también se trae de Sage por si se necesita
+        /// en el futuro, pero el controller no la incluye en el payload.)
+        /// </summary>
+        private const string SqlConsultaDesglose = @"
+SELECT
+    lin.EjercicioAlbaran                    AS ejercicio,
+    MONTH(lin.FechaAlbaran)                 AS mes,
+    lin.CodigoArticulo                      AS codarticulo,
+    art.DescripcionArticulo                 AS descripcion,
+    SUM(lin.Unidades2_)                     AS unidades,
+    SUM(lin.BaseImponible)                 AS baseimponible
+FROM LineasAlbaranCliente lin
+LEFT JOIN CabeceraAlbaranCliente cab
+    ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
+    AND cab.EjercicioAlbaran = lin.EjercicioAlbaran
+    AND cab.SerieAlbaran     = lin.SerieAlbaran
+    AND cab.NumeroAlbaran    = lin.NumeroAlbaran
+LEFT JOIN Articulos art
+    ON  art.CodigoEmpresa  = lin.CodigoEmpresa
+    AND art.CodigoArticulo = lin.CodigoArticulo
+WHERE lin.CodigoEmpresa  = @empresa
+  AND cab.CodigoCliente  = @codigo
+  AND lin.NumeroFactura  <> 0
+  AND lin.FechaAlbaran   > DATEADD(YEAR, -5, GETDATE())
+GROUP BY
+    lin.EjercicioAlbaran,
+    MONTH(lin.FechaAlbaran),
+    lin.CodigoArticulo,
+    art.DescripcionArticulo
+ORDER BY
+    lin.EjercicioAlbaran,
+    MONTH(lin.FechaAlbaran);
 ";
 
         // ---------------------------------------------------------------

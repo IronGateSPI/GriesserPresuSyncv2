@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace GriesserPresuSync.Models
 {
@@ -54,5 +55,12 @@ namespace GriesserPresuSync.Models
         public decimal? CyC { get; set; }
         public decimal? CyCDescubierto { get; set; }
         public decimal? Descuento { get; set; }
+
+        /// <summary>
+        /// Facturación desglosada por ejercicio-mes y artículo, últimos 5 años.
+        /// Estructura: { "2025-01": { "METV": 1234, "SOLZB10": 6545 }, ... }
+        /// Se serializa como JSON en el campo facturacion_desglosada del PUT.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, decimal>> FacturacionDesglosada { get; set; }
     }
 }

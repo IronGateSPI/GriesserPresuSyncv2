@@ -65,17 +65,18 @@ namespace GriesserPresuSync.Controllers
             var form = new Dictionary<string, string>
             {
                 ["sync_sage_distributor"] = Safe(p.Nombre),
-                ["nif"]                   = Safe(p.Nif),
-                ["via_tipo"]              = Safe(p.TipoVia),
-                ["address"]               = Safe(p.Direccion),
-                ["zip_code"]              = Safe(p.CodigoPostal),
-                ["geo_municipality"]      = Safe(p.Municipio),
-                ["geo_province"]          = Safe(p.Provincia),
-                ["facturacion_anual"]     = Money(p.FacturacionAnual),
-                ["descubierto"]           = Money(p.Descubierto),
-                ["credito_y_caucion"]     = Money(p.CyC),
+                ["nif"] = Safe(p.Nif),
+                ["via_tipo"] = Safe(p.TipoVia),
+                ["address"] = Safe(p.Direccion),
+                ["zip_code"] = Safe(p.CodigoPostal),
+                ["geo_municipality"] = Safe(p.Municipio),
+                ["geo_province"] = Safe(p.Provincia),
+                ["facturacion_anual"] = Money(p.FacturacionAnual),
+                ["descubierto"] = Money(p.Descubierto),
+                ["credito_y_caucion"] = Money(p.CyC),
                 ["credito_y_caucion_descubierto"] = Money(p.CyCDescubierto),
-                ["descuento"]             = Money(p.Descuento)
+                ["descuento"] = Money(p.Descuento),
+                ["facturacion_desglosada"] = SerializeDesglose(p.FacturacionDesglosada)
             };
 
             // Snapshot textual para auditoría (se guardará en PayloadEnviado).
@@ -207,6 +208,22 @@ namespace GriesserPresuSync.Controllers
         {
             if (!d.HasValue) return "0";
             return d.Value.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Serializa el desglose de facturación como JSON compacto.
+        /// El formato que espera el CRM es:
+        ///   {"2025-01":{"METV":1234,"SOLZB10":6545},"2025-02":{...}}
+        /// Si el diccionario es null o vacío se envía "{}" para que el
+        /// campo siempre esté presente en el form.
+        /// </summary>
+        private static string SerializeDesglose(
+            System.Collections.Generic.Dictionary<string,
+                System.Collections.Generic.Dictionary<string, decimal>> d)
+        {
+            if (d == null || d.Count == 0)
+                return "{}";
+            return JsonConvert.SerializeObject(d, Formatting.None);
         }
 
         /// <summary>Resultado de un PUT al CRM.</summary>
