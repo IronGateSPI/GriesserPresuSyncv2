@@ -195,7 +195,7 @@ namespace GriesserPresuSync.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"No se pudo leer desglose de facturación del cliente {codigoCliente}. Se enviará vacío.");
-                payload.FacturacionDesglosada = new Dictionary<string, Dictionary<string, decimal>>();
+                payload.FacturacionDesglosada = new Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>>();
             }
 
             // 3) PUT al CRM
@@ -382,10 +382,10 @@ WHERE cli.CodigoEmpresa            = @empresa
         /// DescripcionArticulo se trae de Sage pero no se envía al CRM
         /// (el formato de la API solo admite código → unidades).
         /// </summary>
-        private async Task<Dictionary<string, Dictionary<string, decimal>>>
+        private async Task<Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>>>
             ConsultaDesglosadaAsync(string codigoCliente)
         {
-            var resultado = new Dictionary<string, Dictionary<string, decimal>>();
+            var resultado = new Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>>();
 
             using (var scope = _serviceScopeFactory.CreateScope())
             {
@@ -412,23 +412,40 @@ WHERE cli.CodigoEmpresa            = @empresa
                                 var ejercicio = Convert.ToInt32(reader["ejercicio"]);
                                 var mes = Convert.ToInt32(reader["mes"]);
                                 var articulo = SafeStr(reader, "codarticulo");
-                                //var unidades = SafeDec(reader, "unidades") ?? 0m;
+
                                 var baseimponible = SafeDec(reader, "baseimponible") ?? 0m;
+                                var unidades = SafeDec(reader, "unidades") ?? 0m;
+                                var color = SafeStr(reader, "color");
 
                                 if (string.IsNullOrWhiteSpace(articulo)) continue;
 
                                 var clave = $"{ejercicio}-{mes:D2}";
                                 if (!resultado.TryGetValue(clave, out var mesDict))
                                 {
-                                    mesDict = new Dictionary<string, decimal>();
+                                    mesDict = new Dictionary<string, ArticuloDetalleDesglose>();
                                     resultado[clave] = mesDict;
                                 }
-                                // Si el mismo artículo aparece más de una vez en el mes,
-                                // acumulamos (no debería ocurrir por el GROUP BY, pero por robustez).
+                                // Si el mismo artículo aparece más de una vez en el mes
+                                // (distintas cabeceras con distinto zcolor), acumulamos
+                                // importe y unidades y conservamos el primer color encontrado.
                                 if (mesDict.TryGetValue(articulo, out var acum))
-                                    mesDict[articulo] = acum + baseimponible;
+                                {
+                                    mesDict[articulo] = new ArticuloDetalleDesglose
+                                    {
+                                        Importe = acum.Importe + baseimponible,
+                                        Unidades = acum.Unidades + unidades,
+                                        Color = acum.Color ?? color
+                                    };
+                                }
                                 else
-                                    mesDict[articulo] = baseimponible;
+                                {
+                                    mesDict[articulo] = new ArticuloDetalleDesglose
+                                    {
+                                        Importe = baseimponible,
+                                        Unidades = unidades,
+                                        Color = color
+                                    };
+                                }
                             }
                         }
                     }
@@ -455,8 +472,10 @@ SELECT
     MONTH(lin.FechaAlbaran)                 AS mes,
     lin.CodigoArticulo                      AS codarticulo,
     art.DescripcionArticulo                 AS descripcion,
+    cab.zcolor                              AS color,
     SUM(lin.Unidades2_)                     AS unidades,
-    SUM(lin.BaseImponible)                 AS baseimponible
+    SUM(lin.Baseimponible)                  AS baseimponible
+						   
 FROM LineasAlbaranCliente lin
 LEFT JOIN CabeceraAlbaranCliente cab
     ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
@@ -466,15 +485,17 @@ LEFT JOIN CabeceraAlbaranCliente cab
 LEFT JOIN Articulos art
     ON  art.CodigoEmpresa  = lin.CodigoEmpresa
     AND art.CodigoArticulo = lin.CodigoArticulo
-WHERE lin.CodigoEmpresa  = @empresa
-  AND cab.CodigoCliente  = @codigo
-  AND lin.NumeroFactura  <> 0
-  AND lin.FechaAlbaran   > DATEADD(YEAR, -5, GETDATE())
+WHERE lin.CodigoEmpresa   = @empresa
+  AND cab.CodigoCliente   = @codigo
+  AND lin.NumeroFactura   <> 0
+  AND lin.FechaAlbaran    > DATEADD(YEAR, -5, GETDATE())
+  AND lin.CodigoDFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
 GROUP BY
     lin.EjercicioAlbaran,
     MONTH(lin.FechaAlbaran),
     lin.CodigoArticulo,
-    art.DescripcionArticulo
+    art.DescripcionArticulo,
+    cab.zcolor
 ORDER BY
     lin.EjercicioAlbaran,
     MONTH(lin.FechaAlbaran);

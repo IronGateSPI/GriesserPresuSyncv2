@@ -219,7 +219,7 @@ namespace GriesserPresuSync.Controllers
         /// </summary>
         private static string SerializeDesglose(
             System.Collections.Generic.Dictionary<string,
-                System.Collections.Generic.Dictionary<string, decimal>> d)
+                System.Collections.Generic.Dictionary<string, Models.ArticuloDetalleDesglose>> d)
         {
             if (d == null || d.Count == 0)
                 return "{}";
