@@ -489,7 +489,7 @@ WHERE lin.CodigoEmpresa   = @empresa
   AND cab.CodigoCliente   = @codigo
   AND lin.NumeroFactura   <> 0
   AND lin.FechaAlbaran    > DATEADD(YEAR, -5, GETDATE())
-  AND lin.CodigoDFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
+  AND lin.CodigoFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
 GROUP BY
     lin.EjercicioAlbaran,
     MONTH(lin.FechaAlbaran),
