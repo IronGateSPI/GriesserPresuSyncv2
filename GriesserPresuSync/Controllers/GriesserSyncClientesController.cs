@@ -313,7 +313,11 @@ namespace GriesserPresuSync.Controllers
                                 Descubierto = SafeDec(reader, "descubierto"),
                                 CyC = SafeDec(reader, "cyc"),
                                 CyCDescubierto = SafeDec(reader, "cycdescubierto"),
-                                Descuento = SafeDec(reader, "descuento")
+                                Descuento = SafeDec(reader, "descuento"),
+                                IgDtoWeinor = SafeDec(reader, "igdtoweinor"),
+                                IgDtoMallorq = SafeDec(reader, "igdtomallorq"),
+                                CreditoInterno = SafeDec(reader, "credito_interno"),
+                                CreditoLatente = SafeDec(reader, "credito_latente")
                             };
                         }
                     }
@@ -349,7 +353,12 @@ SELECT
     r.riesgo                                             AS descubierto,
     cli.RiesgoMaximo                                     AS cyc,
     (cli.RiesgoMaximo - ISNULL(r.riesgo, 0))             AS cycdescubierto,
-    cli.[%Descuento]                                     AS descuento
+    cli.[%Descuento]                                     AS descuento,
+    cli.IgDtoWeinor                                      AS igdtoweinor,
+    cli.IgDtoMallorq                                     AS igdtomallorq,
+    cli.ZZRiesgoGriesser                                 AS credito_interno,
+    (cli.RiesgoMaximo + cli.ZZRiesgoGriesser
+        - ISNULL(r.riesgo, 0))                           AS credito_latente
 FROM Clientes cli
 OUTER APPLY (
     SELECT SUM(Baseimponible) AS Baseanual
@@ -475,7 +484,7 @@ SELECT
     cab.zcolor                              AS color,
     SUM(lin.Unidades2_)                     AS unidades,
     SUM(lin.Baseimponible)                  AS baseimponible
-						   
+   
 FROM LineasAlbaranCliente lin
 LEFT JOIN CabeceraAlbaranCliente cab
     ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
@@ -489,7 +498,7 @@ WHERE lin.CodigoEmpresa   = @empresa
   AND cab.CodigoCliente   = @codigo
   AND lin.NumeroFactura   <> 0
   AND lin.FechaAlbaran    > DATEADD(YEAR, -5, GETDATE())
-  AND lin.CodigoFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
+  AND lin.CodigoFamilia   IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
 GROUP BY
     lin.EjercicioAlbaran,
     MONTH(lin.FechaAlbaran),

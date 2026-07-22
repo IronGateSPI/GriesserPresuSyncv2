@@ -55,6 +55,14 @@ namespace GriesserPresuSync.Models
         public decimal? CyC { get; set; }
         public decimal? CyCDescubierto { get; set; }
         public decimal? Descuento { get; set; }
+        /// <summary>Descuento específico canal Weinor. Columna Clientes.IgDtoWeinor.</summary>
+        public decimal? IgDtoWeinor { get; set; }
+        /// <summary>Descuento específico canal Mallorquinas. Columna Clientes.IgDtoMallorq.</summary>
+        public decimal? IgDtoMallorq { get; set; }
+        /// <summary>Crédito interno Griesser. Columna Clientes.ZZRiesgoGriesser.</summary>
+        public decimal? CreditoInterno { get; set; }
+        /// <summary>Crédito latente: RiesgoMaximo + ZZRiesgoGriesser - riesgo pendiente.</summary>
+        public decimal? CreditoLatente { get; set; }
 
         /// <summary>
         /// Facturación desglosada por ejercicio-mes y artículo, últimos 5 años.

@@ -76,6 +76,10 @@ namespace GriesserPresuSync.Controllers
                 ["credito_y_caucion"] = Money(p.CyC),
                 ["credito_y_caucion_descubierto"] = Money(p.CyCDescubierto),
                 ["descuento"] = Money(p.Descuento),
+                ["descuento_weinor"] = Money(p.IgDtoWeinor),
+                ["descuento_mallorquinas"] = Money(p.IgDtoMallorq),
+                ["credito_interno"] = Money(p.CreditoInterno),
+                ["credito_latente"] = Money(p.CreditoLatente),
                 ["facturacion_desglosada"] = SerializeDesglose(p.FacturacionDesglosada)
             };
 
