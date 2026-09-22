@@ -65,22 +65,24 @@ namespace GriesserPresuSync.Controllers
             var form = new Dictionary<string, string>
             {
                 ["sync_sage_distributor"] = Safe(p.Nombre),
-                ["nif"] = Safe(p.Nif),
-                ["via_tipo"] = Safe(p.TipoVia),
-                ["address"] = Safe(p.Direccion),
-                ["zip_code"] = Safe(p.CodigoPostal),
-                ["geo_municipality"] = Safe(p.Municipio),
-                ["geo_province"] = Safe(p.Provincia),
-                ["facturacion_anual"] = Money(p.FacturacionAnual),
-                ["descubierto"] = Money(p.Descubierto),
-                ["credito_y_caucion"] = Money(p.CyC),
+                ["nif"]                   = Safe(p.Nif),
+                ["via_tipo"]              = Safe(p.TipoVia),
+                ["address"]               = Safe(p.Direccion),
+                ["zip_code"]              = Safe(p.CodigoPostal),
+                ["geo_municipality"]      = Safe(p.Municipio),
+                ["geo_province"]          = Safe(p.Provincia),
+                ["facturacion_anual"]            = Money(p.FacturacionAnual),
+                ["facturacion_desglosada"]       = SerializeDesglose(p.FacturacionDesglosada),
+                ["facturas"]                     = SerializeLista(p.Facturas),
+                ["pedidos"]                      = SerializeLista(p.Pedidos),
+                ["descubierto"]                  = Money(p.Descubierto),
+                ["credito_y_caucion"]            = Money(p.CyC),
                 ["credito_y_caucion_descubierto"] = Money(p.CyCDescubierto),
-                ["descuento"] = Money(p.Descuento),
-                ["descuento_weinor"] = Money(p.IgDtoWeinor),
-                ["descuento_mallorquinas"] = Money(p.IgDtoMallorq),
-                ["credito_interno"] = Money(p.CreditoInterno),
-                ["credito_latente"] = Money(p.CreditoLatente),
-                ["facturacion_desglosada"] = SerializeDesglose(p.FacturacionDesglosada)
+                ["descuento"]                    = Money(p.Descuento),
+                ["descuento_weinor"]             = Money(p.IgDtoWeinor),
+                ["descuento_mallorquinas"]       = Money(p.IgDtoMallorq),
+                ["credito_interno"]              = Money(p.CreditoInterno),
+                ["credito_latente"]              = Money(p.CreditoLatente)
             };
 
             // Snapshot textual para auditoría (se guardará en PayloadEnviado).
@@ -228,6 +230,18 @@ namespace GriesserPresuSync.Controllers
             if (d == null || d.Count == 0)
                 return "{}";
             return JsonConvert.SerializeObject(d, Formatting.None);
+        }
+
+        /// <summary>
+        /// Serializa una lista (facturas / pedidos) como array JSON compacto.
+        /// Si la lista es null o vacía se envía "[]" para que el campo siempre
+        /// viaje en el form, igual que hacemos con el desglose.
+        /// </summary>
+        private static string SerializeLista<T>(System.Collections.Generic.List<T> lista)
+        {
+            if (lista == null || lista.Count == 0)
+                return "[]";
+            return JsonConvert.SerializeObject(lista, Formatting.None);
         }
 
         /// <summary>Resultado de un PUT al CRM.</summary>

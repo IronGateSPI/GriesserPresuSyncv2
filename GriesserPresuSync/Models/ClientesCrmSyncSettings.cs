@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace GriesserPresuSync.Models
 {
@@ -38,6 +38,15 @@ namespace GriesserPresuSync.Models
 
         /// <summary>Timeout HTTP (s) para cada llamada PUT.</summary>
         public int HttpTimeoutSeconds { get; set; } = 30;
+
+        /// <summary>
+        /// Ventana histórica (en meses) del campo "facturas" del PUT.
+        /// Default 24. Acota el tamaño del payload: con 5 años (60) el peor
+        /// cliente medido generaba ~215 KB url-encoded solo en este campo.
+        /// El histórico largo agregado sigue viajando en facturacion_desglosada.
+        /// Cambiarlo NO requiere recompilar, solo reiniciar el servicio.
+        /// </summary>
+        public int FacturasHistoricoMeses { get; set; } = 60;
 
         // ====== Import CRM → Sage ======
         /// <summary>Activa/desactiva el worker de bajada nocturna.</summary>

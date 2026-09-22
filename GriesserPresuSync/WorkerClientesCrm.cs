@@ -105,6 +105,7 @@ namespace GriesserPresuSync
                 if (int.TryParse(sec["MaxIntentos"], out var mi)) s.MaxIntentos = mi;
                 if (short.TryParse(sec["CodigoEmpresa"], out var ce)) s.CodigoEmpresa = ce;
                 if (int.TryParse(sec["HttpTimeoutSeconds"], out var ht)) s.HttpTimeoutSeconds = ht;
+                if (int.TryParse(sec["FacturasHistoricoMeses"], out var fh) && fh > 0) s.FacturasHistoricoMeses = fh;
 
                 if (bool.TryParse(sec["EnableImport"], out var ei)) s.EnableImport = ei;
                 if (int.TryParse(sec["ImportHour"], out var ih)) s.ImportHour = ih;

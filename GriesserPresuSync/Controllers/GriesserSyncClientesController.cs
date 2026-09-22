@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using GriesserPresuSync.Models;
@@ -198,6 +199,28 @@ namespace GriesserPresuSync.Controllers
                 payload.FacturacionDesglosada = new Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>>();
             }
 
+            // 2b) Facturas individuales y pedidos pendientes. Mismo criterio que
+            //     el desglose: un fallo aquí NO aborta el envío de datos maestros.
+            try
+            {
+                payload.Facturas = await ConsultaFacturasAsync(codigoCliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"No se pudo leer facturas del cliente {codigoCliente}. Se enviará vacío.");
+                payload.Facturas = new List<FacturaCrm>();
+            }
+
+            try
+            {
+                payload.Pedidos = await ConsultaPedidosAsync(codigoCliente);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"No se pudo leer pedidos del cliente {codigoCliente}. Se enviará vacío.");
+                payload.Pedidos = new List<PedidoCrm>();
+            }
+
             // 3) PUT al CRM
             var result = await _apiController.PutClienteAsync(payload);
 
@@ -301,23 +324,23 @@ namespace GriesserPresuSync.Controllers
 
                             return new ClienteCrmPayload
                             {
-                                CodigoCliente = codigoCliente,
-                                Nombre = SafeStr(reader, "nombre"),
-                                Nif = SafeStr(reader, "nif"),
-                                TipoVia = SafeStr(reader, "tipovia"),
-                                Direccion = NormalizaDireccion(SafeStr(reader, "direccion")),
-                                CodigoPostal = SafeStr(reader, "codigopostal"),
-                                Municipio = SafeStr(reader, "municipio"),
-                                Provincia = SafeStr(reader, "provincia"),
+                                CodigoCliente   = codigoCliente,
+                                Nombre          = SafeStr(reader, "nombre"),
+                                Nif             = SafeStr(reader, "nif"),
+                                TipoVia         = SafeStr(reader, "tipovia"),
+                                Direccion       = NormalizaDireccion(SafeStr(reader, "direccion")),
+                                CodigoPostal    = SafeStr(reader, "codigopostal"),
+                                Municipio       = SafeStr(reader, "municipio"),
+                                Provincia       = SafeStr(reader, "provincia"),
                                 FacturacionAnual = SafeDec(reader, "baseanual"),
-                                Descubierto = SafeDec(reader, "descubierto"),
-                                CyC = SafeDec(reader, "cyc"),
-                                CyCDescubierto = SafeDec(reader, "cycdescubierto"),
-                                Descuento = SafeDec(reader, "descuento"),
-                                IgDtoWeinor = SafeDec(reader, "igdtoweinor"),
-                                IgDtoMallorq = SafeDec(reader, "igdtomallorq"),
-                                CreditoInterno = SafeDec(reader, "credito_interno"),
-                                CreditoLatente = SafeDec(reader, "credito_latente")
+                                Descubierto     = SafeDec(reader, "descubierto"),
+                                CyC             = SafeDec(reader, "cyc"),
+                                CyCDescubierto  = SafeDec(reader, "cycdescubierto"),
+                                Descuento       = SafeDec(reader, "descuento"),
+                                IgDtoWeinor     = SafeDec(reader, "igdtoweinor"),
+                                IgDtoMallorq    = SafeDec(reader, "igdtomallorq"),
+                                CreditoInterno  = SafeDec(reader, "credito_interno"),
+                                CreditoLatente  = SafeDec(reader, "credito_latente")
                             };
                         }
                     }
@@ -411,20 +434,19 @@ WHERE cli.CodigoEmpresa            = @empresa
                         cmd.CommandText = SqlConsultaDesglose;
                         cmd.CommandType = System.Data.CommandType.Text;
 
-                        AddParam(cmd, "@empresa", System.Data.DbType.Int16, _settings.CodigoEmpresa);
-                        AddParam(cmd, "@codigo", System.Data.DbType.String, codigoCliente);
+                        AddParam(cmd, "@empresa", System.Data.DbType.Int16,  _settings.CodigoEmpresa);
+                        AddParam(cmd, "@codigo",  System.Data.DbType.String, codigoCliente);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
                             {
-                                var ejercicio = Convert.ToInt32(reader["ejercicio"]);
-                                var mes = Convert.ToInt32(reader["mes"]);
-                                var articulo = SafeStr(reader, "codarticulo");
-
+                                var ejercicio     = Convert.ToInt32(reader["ejercicio"]);
+                                var mes           = Convert.ToInt32(reader["mes"]);
+                                var articulo      = SafeStr(reader, "codarticulo");
                                 var baseimponible = SafeDec(reader, "baseimponible") ?? 0m;
-                                var unidades = SafeDec(reader, "unidades") ?? 0m;
-                                var color = SafeStr(reader, "color");
+                                var unidades      = SafeDec(reader, "unidades") ?? 0m;
+                                var color         = SafeStr(reader, "color");
 
                                 if (string.IsNullOrWhiteSpace(articulo)) continue;
 
@@ -441,18 +463,18 @@ WHERE cli.CodigoEmpresa            = @empresa
                                 {
                                     mesDict[articulo] = new ArticuloDetalleDesglose
                                     {
-                                        Importe = acum.Importe + baseimponible,
+                                        Importe  = acum.Importe  + baseimponible,
                                         Unidades = acum.Unidades + unidades,
-                                        Color = acum.Color ?? color
+                                        Color    = acum.Color ?? color
                                     };
                                 }
                                 else
                                 {
                                     mesDict[articulo] = new ArticuloDetalleDesglose
                                     {
-                                        Importe = baseimponible,
+                                        Importe  = baseimponible,
                                         Unidades = unidades,
-                                        Color = color
+                                        Color    = color
                                     };
                                 }
                             }
@@ -484,7 +506,6 @@ SELECT
     cab.zcolor                              AS color,
     SUM(lin.Unidades2_)                     AS unidades,
     SUM(lin.Baseimponible)                  AS baseimponible
-   
 FROM LineasAlbaranCliente lin
 LEFT JOIN CabeceraAlbaranCliente cab
     ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
@@ -508,6 +529,252 @@ GROUP BY
 ORDER BY
     lin.EjercicioAlbaran,
     MONTH(lin.FechaAlbaran);
+";
+
+        // ---------------------------------------------------------------
+        // Consulta facturas individuales (campo "facturas")
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Devuelve las facturas individuales del cliente dentro de la ventana
+        /// configurada (FacturasHistoricoMeses). La query devuelve una fila por
+        /// factura+artículo+color; aquí se agrupan en la estructura anidada.
+        /// Nunca devuelve null.
+        /// </summary>
+        private async Task<List<FacturaCrm>> ConsultaFacturasAsync(string codigoCliente)
+        {
+            var porFactura = new Dictionary<string, FacturaCrm>();
+            var orden = new List<string>();
+
+            using (var scope = _serviceScopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
+                var conn = db.Database.GetDbConnection();
+                var huboQueAbrir = conn.State != System.Data.ConnectionState.Open;
+                if (huboQueAbrir) await conn.OpenAsync();
+
+                try
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = SqlConsultaFacturas;
+                        cmd.CommandType = System.Data.CommandType.Text;
+
+                        AddParam(cmd, "@empresa", System.Data.DbType.Int16,  _settings.CodigoEmpresa);
+                        AddParam(cmd, "@codigo",  System.Data.DbType.String, codigoCliente);
+                        AddParam(cmd, "@meses",   System.Data.DbType.Int32,  _settings.FacturasHistoricoMeses);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var ejercicio = Convert.ToInt32(reader["ejercicio"]);
+                                var serie     = (SafeStr(reader, "serie") ?? string.Empty).Trim();
+                                var numero    = Convert.ToInt32(reader["numero"]);
+
+                                // Clave interna: incluye ejercicio para que dos facturas
+                                // de años distintos con el mismo número no se fusionen.
+                                var claveInterna = $"{ejercicio}|{serie}|{numero}";
+                                // Valor visible para el CRM.
+                                var numFactura = string.IsNullOrEmpty(serie)
+                                    ? numero.ToString(CultureInfo.InvariantCulture)
+                                    : $"{serie}/{numero.ToString(CultureInfo.InvariantCulture)}";
+
+                                if (!porFactura.TryGetValue(claveInterna, out var factura))
+                                {
+                                    factura = new FacturaCrm
+                                    {
+                                        NumFactura        = numFactura,
+                                        ReferenciaCliente = SafeStr(reader, "referencia_cliente"),
+                                        Fecha             = SafeFecha(reader, "fecha"),
+                                        Total             = SafeDec(reader, "total") ?? 0m
+                                    };
+                                    porFactura[claveInterna] = factura;
+                                    orden.Add(claveInterna);
+                                }
+
+                                var art = SafeStr(reader, "codarticulo");
+                                if (string.IsNullOrWhiteSpace(art)) continue;
+
+                                factura.Productos.Add(new FacturaProductoCrm
+                                {
+                                    Producto = art,
+                                    Unidades = SafeDec(reader, "unidades") ?? 0m,
+                                    Color    = SafeStr(reader, "color")
+                                });
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (huboQueAbrir) conn.Close();
+                }
+            }
+
+            return orden.Select(k => porFactura[k]).ToList();
+        }
+
+        /// <summary>
+        /// Facturas del cliente en los últimos @meses, con el detalle de artículo
+        /// procedente de las líneas de albarán ya facturadas.
+        /// Mismo filtro de familias que el desglose agregado.
+        /// </summary>
+        private const string SqlConsultaFacturas = @"
+SELECT
+    rc.EjercicioFactura                     AS ejercicio,
+    rc.SerieFactura                         AS serie,
+    rc.NumeroFactura                        AS numero,
+    rc.FechaFactura                         AS fecha,
+    rc.BaseImponible                        AS total,
+    MAX(lin.SuPedido)                       AS referencia_cliente,
+    lin.CodigoArticulo                      AS codarticulo,
+    cab.zColor                              AS color,
+    SUM(lin.Unidades2_)                     AS unidades
+FROM dbo.ResumenCliente rc
+JOIN dbo.LineasAlbaranCliente lin
+    ON  lin.CodigoEmpresa    = rc.CodigoEmpresa
+    AND lin.EjercicioFactura = rc.EjercicioFactura
+    AND lin.SerieFactura     = rc.SerieFactura
+    AND lin.NumeroFactura    = rc.NumeroFactura
+LEFT JOIN dbo.CabeceraAlbaranCliente cab
+    ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
+    AND cab.EjercicioAlbaran = lin.EjercicioAlbaran
+    AND cab.SerieAlbaran     = lin.SerieAlbaran
+    AND cab.NumeroAlbaran    = lin.NumeroAlbaran
+WHERE rc.CodigoEmpresa  = @empresa
+  AND rc.CodigoCliente  = @codigo
+  AND rc.FechaFactura   > DATEADD(MONTH, -@meses, GETDATE())
+  AND lin.CodigoFamilia IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
+GROUP BY
+    rc.EjercicioFactura, rc.SerieFactura, rc.NumeroFactura,
+    rc.FechaFactura, rc.BaseImponible,
+    lin.CodigoArticulo, cab.zColor
+ORDER BY rc.FechaFactura, rc.NumeroFactura;
+";
+
+        // ---------------------------------------------------------------
+        // Consulta pedidos pendientes de servir (campo "pedidos")
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Devuelve los pedidos de venta pendientes (Estado = 0) del cliente.
+        /// La query devuelve una fila por pedido+artículo; aquí se agrupan.
+        /// El campo Unidades del pedido se calcula sumando sus líneas.
+        /// Nunca devuelve null.
+        /// </summary>
+        private async Task<List<PedidoCrm>> ConsultaPedidosAsync(string codigoCliente)
+        {
+            var porPedido = new Dictionary<string, PedidoCrm>();
+            var orden = new List<string>();
+
+            using (var scope = _serviceScopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
+                var conn = db.Database.GetDbConnection();
+                var huboQueAbrir = conn.State != System.Data.ConnectionState.Open;
+                if (huboQueAbrir) await conn.OpenAsync();
+
+                try
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = SqlConsultaPedidos;
+                        cmd.CommandType = System.Data.CommandType.Text;
+
+                        AddParam(cmd, "@empresa", System.Data.DbType.Int16,  _settings.CodigoEmpresa);
+                        AddParam(cmd, "@codigo",  System.Data.DbType.String, codigoCliente);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var ejercicio = Convert.ToInt32(reader["ejercicio"]);
+                                var serie     = (SafeStr(reader, "serie") ?? string.Empty).Trim();
+                                var numero    = Convert.ToInt32(reader["numero"]);
+                                var clave     = $"{ejercicio}|{serie}|{numero}";
+
+                                if (!porPedido.TryGetValue(clave, out var pedido))
+                                {
+                                    var confirmacion = SafeDec(reader, "num_confirmacion");
+                                    pedido = new PedidoCrm
+                                    {
+                                        Fecha             = SafeFecha(reader, "fecha"),
+                                        NumConfirmacion   = confirmacion.HasValue
+                                            ? decimal.Truncate(confirmacion.Value).ToString("0", CultureInfo.InvariantCulture)
+                                            : string.Empty,
+                                        ReferenciaCliente = SafeStr(reader, "referencia_cliente"),
+                                        NumPersianas      = SafeInt(reader, "num_persianas"),
+                                        Color             = SafeStr(reader, "color"),
+                                        BaseImponible     = SafeDec(reader, "base_imponible") ?? 0m,
+                                        ImporteTransporte = SafeDec(reader, "importe_transporte") ?? 0m,
+                                        Instalacion       = SafeDec(reader, "instalacion") ?? 0m
+                                    };
+                                    porPedido[clave] = pedido;
+                                    orden.Add(clave);
+                                }
+
+                                var art = SafeStr(reader, "codarticulo");
+                                if (string.IsNullOrWhiteSpace(art)) continue;
+
+                                var uds = SafeDec(reader, "unidades") ?? 0m;
+                                pedido.Lineas.Add(new PedidoLineaCrm
+                                {
+                                    Producto = art,
+                                    Unidades = uds,
+                                    Precio   = SafeDec(reader, "precio") ?? 0m
+                                });
+                                // Unidades del pedido = suma de sus líneas.
+                                pedido.Unidades += uds;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (huboQueAbrir) conn.Close();
+                }
+            }
+
+            return orden.Select(k => porPedido[k]).ToList();
+        }
+
+        /// <summary>
+        /// Pedidos de venta pendientes de servir. Estado = 0 es pendiente;
+        /// Estado = 2 es servido (verificado sobre BDGRIESSER: 88 vs 18.632 filas).
+        /// </summary>
+        private const string SqlConsultaPedidos = @"
+SELECT
+    cab.EjercicioPedido                     AS ejercicio,
+    cab.SeriePedido                         AS serie,
+    cab.NumeroPedido                        AS numero,
+    cab.FechaPedido                         AS fecha,
+    cab.zNConfirmacionPedido                AS num_confirmacion,
+    cab.SuPedido                            AS referencia_cliente,
+    cab.zTotalPersianas                     AS num_persianas,
+    cab.zColor                              AS color,
+    cab.BaseImponible                       AS base_imponible,
+    cab.ImportePortes                       AS importe_transporte,
+    cab.zImporteInstalacion                 AS instalacion,
+    lin.CodigoArticulo                      AS codarticulo,
+    SUM(lin.UnidadesPedidas)                AS unidades,
+    MAX(lin.zPrecioUnidad)                  AS precio
+FROM dbo.CabeceraPedidoCliente cab
+JOIN dbo.LineasPedidoCliente lin
+    ON  lin.CodigoEmpresa   = cab.CodigoEmpresa
+    AND lin.EjercicioPedido = cab.EjercicioPedido
+    AND lin.SeriePedido     = cab.SeriePedido
+    AND lin.NumeroPedido    = cab.NumeroPedido
+WHERE cab.CodigoEmpresa  = @empresa
+  AND cab.CodigoCliente  = @codigo
+  AND cab.Estado         = 0
+  AND lin.CodigoFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
+GROUP BY
+    cab.EjercicioPedido, cab.SeriePedido, cab.NumeroPedido, cab.FechaPedido,
+    cab.zNConfirmacionPedido, cab.SuPedido, cab.zTotalPersianas, cab.zColor,
+    cab.BaseImponible, cab.ImportePortes, cab.zImporteInstalacion,
+    lin.CodigoArticulo
+ORDER BY cab.FechaPedido, cab.NumeroPedido;
 ";
 
         // ---------------------------------------------------------------
@@ -577,6 +844,31 @@ ORDER BY
             var raw = r.GetValue(i);
             try { return Convert.ToDecimal(raw); }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// Lee una columna de fecha y la devuelve en ISO yyyy-MM-dd.
+        /// Devuelve null si la columna es NULL o no es convertible.
+        /// </summary>
+        private static string SafeFecha(IDataReader r, string col)
+        {
+            var i = r.GetOrdinal(col);
+            if (r.IsDBNull(i)) return null;
+            try
+            {
+                var d = Convert.ToDateTime(r.GetValue(i));
+                return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Lee una columna entera, devolviendo 0 si es NULL o no convertible.</summary>
+        private static int SafeInt(IDataReader r, string col)
+        {
+            var i = r.GetOrdinal(col);
+            if (r.IsDBNull(i)) return 0;
+            try { return Convert.ToInt32(r.GetValue(i)); }
+            catch { return 0; }
         }
 
         /// <summary>

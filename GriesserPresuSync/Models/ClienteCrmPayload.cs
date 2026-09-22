@@ -71,5 +71,19 @@ namespace GriesserPresuSync.Models
         /// Solo incluye familias de artículo: 1Ma, 1P, 1PE, 1PG, 1T, 1To, 1We, AU, S.
         /// </summary>
         public Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>> FacturacionDesglosada { get; set; }
+
+        /// <summary>
+        /// Facturas individuales (campo "facturas" del PUT). Ventana histórica
+        /// configurable — ver ClientesCrmSyncSettings.FacturasHistoricoMeses.
+        /// Convive con FacturacionDesglosada: el CRM seguirá recibiendo ambos
+        /// hasta que migren su programación al nuevo formato.
+        /// </summary>
+        public List<FacturaCrm> Facturas { get; set; }
+
+        /// <summary>
+        /// Pedidos de venta pendientes de servir (campo "pedidos" del PUT).
+        /// Filtro: CabeceraPedidoCliente.Estado = 0.
+        /// </summary>
+        public List<PedidoCrm> Pedidos { get; set; }
     }
 }
