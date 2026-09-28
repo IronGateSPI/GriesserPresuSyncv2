@@ -68,7 +68,8 @@ namespace GriesserPresuSync.Models
         /// Facturación desglosada por ejercicio-mes y artículo, últimos 5 años.
         /// Estructura: { "2025-01": { "METV": { "importe": 1234.56, "unidades": 5, "color": "RAL7016" } } }
         /// Se serializa como JSON en el campo facturacion_desglosada del PUT.
-        /// Solo incluye familias de artículo: 1Ma, 1P, 1PE, 1PG, 1T, 1To, 1We, AU, S.
+        /// Agrupado por año-mes de FECHA DE FACTURA (no de albarán) y sin filtro
+        /// de familias, para que cuadre con el campo "facturas".
         /// </summary>
         public Dictionary<string, Dictionary<string, ArticuloDetalleDesglose>> FacturacionDesglosada { get; set; }
 

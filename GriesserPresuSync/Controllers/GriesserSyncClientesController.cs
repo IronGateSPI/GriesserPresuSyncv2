@@ -499,36 +499,34 @@ WHERE cli.CodigoEmpresa            = @empresa
         /// </summary>
         private const string SqlConsultaDesglose = @"
 SELECT
-    lin.EjercicioAlbaran                    AS ejercicio,
-    MONTH(lin.FechaAlbaran)                 AS mes,
+    YEAR(rc.FechaFactura)                   AS ejercicio,
+    MONTH(rc.FechaFactura)                  AS mes,
     lin.CodigoArticulo                      AS codarticulo,
-    art.DescripcionArticulo                 AS descripcion,
-    cab.zcolor                              AS color,
+    cab.zColor                              AS color,
     SUM(lin.Unidades2_)                     AS unidades,
     SUM(lin.Baseimponible)                  AS baseimponible
-FROM LineasAlbaranCliente lin
-LEFT JOIN CabeceraAlbaranCliente cab
+FROM dbo.ResumenCliente rc
+JOIN dbo.LineasAlbaranCliente lin
+    ON  lin.CodigoEmpresa    = rc.CodigoEmpresa
+    AND lin.EjercicioFactura = rc.EjercicioFactura
+    AND lin.SerieFactura     = rc.SerieFactura
+    AND lin.NumeroFactura    = rc.NumeroFactura
+LEFT JOIN dbo.CabeceraAlbaranCliente cab
     ON  cab.CodigoEmpresa    = lin.CodigoEmpresa
     AND cab.EjercicioAlbaran = lin.EjercicioAlbaran
     AND cab.SerieAlbaran     = lin.SerieAlbaran
     AND cab.NumeroAlbaran    = lin.NumeroAlbaran
-LEFT JOIN Articulos art
-    ON  art.CodigoEmpresa  = lin.CodigoEmpresa
-    AND art.CodigoArticulo = lin.CodigoArticulo
-WHERE lin.CodigoEmpresa   = @empresa
-  AND cab.CodigoCliente   = @codigo
-  AND lin.NumeroFactura   <> 0
-  AND lin.FechaAlbaran    > DATEADD(YEAR, -5, GETDATE())
-  AND lin.CodigoFamilia   IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
+WHERE rc.CodigoEmpresa = @empresa
+  AND rc.CodigoCliente = @codigo
+  AND rc.FechaFactura  > DATEADD(YEAR, -5, GETDATE())
 GROUP BY
-    lin.EjercicioAlbaran,
-    MONTH(lin.FechaAlbaran),
+    YEAR(rc.FechaFactura),
+    MONTH(rc.FechaFactura),
     lin.CodigoArticulo,
-    art.DescripcionArticulo,
-    cab.zcolor
+    cab.zColor
 ORDER BY
-    lin.EjercicioAlbaran,
-    MONTH(lin.FechaAlbaran);
+    YEAR(rc.FechaFactura),
+    MONTH(rc.FechaFactura);
 ";
 
         // ---------------------------------------------------------------
@@ -572,22 +570,31 @@ ORDER BY
                                 var serie     = (SafeStr(reader, "serie") ?? string.Empty).Trim();
                                 var numero    = Convert.ToInt32(reader["numero"]);
 
-                                // Clave interna: incluye ejercicio para que dos facturas
-                                // de años distintos con el mismo número no se fusionen.
                                 var claveInterna = $"{ejercicio}|{serie}|{numero}";
-                                // Valor visible para el CRM.
+
+                                // El número de factura DEBE llevar el ejercicio: Sage
+                                // reinicia la numeración cada año (verificado en BD:
+                                // todas las series arrancan en 1 en cada ejercicio), así
+                                // que serie+número solos no identifican una factura.
+                                // Formato: "2026/SV/12345" o "2026/12345" si no hay serie.
+                                var num = numero.ToString(CultureInfo.InvariantCulture);
                                 var numFactura = string.IsNullOrEmpty(serie)
-                                    ? numero.ToString(CultureInfo.InvariantCulture)
-                                    : $"{serie}/{numero.ToString(CultureInfo.InvariantCulture)}";
+                                    ? $"{ejercicio}/{num}"
+                                    : $"{ejercicio}/{serie}/{num}";
 
                                 if (!porFactura.TryGetValue(claveInterna, out var factura))
                                 {
+                                    var confirmacion = SafeDec(reader, "codigo_confirmacion_pedido");
                                     factura = new FacturaCrm
                                     {
-                                        NumFactura        = numFactura,
-                                        ReferenciaCliente = SafeStr(reader, "referencia_cliente"),
+                                        NumFactura = numFactura,
+                                        Referencia = SafeStr(reader, "referencia"),
+                                        CodigoConfirmacionPedido = confirmacion.HasValue
+                                            ? decimal.Truncate(confirmacion.Value).ToString("0", CultureInfo.InvariantCulture)
+                                            : string.Empty,
                                         Fecha             = SafeFecha(reader, "fecha"),
-                                        Total             = SafeDec(reader, "total") ?? 0m
+                                        Total             = SafeDec(reader, "total") ?? 0m,
+                                        ImporteTransporte = SafeDec(reader, "importe_transporte") ?? 0m
                                     };
                                     porFactura[claveInterna] = factura;
                                     orden.Add(claveInterna);
@@ -600,6 +607,7 @@ ORDER BY
                                 {
                                     Producto = art,
                                     Unidades = SafeDec(reader, "unidades") ?? 0m,
+                                    Importe  = SafeDec(reader, "importe") ?? 0m,
                                     Color    = SafeStr(reader, "color")
                                 });
                             }
@@ -618,7 +626,8 @@ ORDER BY
         /// <summary>
         /// Facturas del cliente en los últimos @meses, con el detalle de artículo
         /// procedente de las líneas de albarán ya facturadas.
-        /// Mismo filtro de familias que el desglose agregado.
+        /// Sin filtro de familias: el CRM necesita la facturación completa
+        /// para que la suma de los productos cuadre con el total de la factura.
         /// </summary>
         private const string SqlConsultaFacturas = @"
 SELECT
@@ -627,12 +636,15 @@ SELECT
     rc.NumeroFactura                        AS numero,
     rc.FechaFactura                         AS fecha,
     rc.BaseImponible                        AS total,
-    MAX(lin.SuPedido)                       AS referencia_cliente,
+    rc.ImportePortes                        AS importe_transporte,
+    cab.zNPresupuesto                       AS referencia,
+    cab.zNConfirmacionPedido                AS codigo_confirmacion_pedido,
     lin.CodigoArticulo                      AS codarticulo,
     cab.zColor                              AS color,
-    SUM(lin.Unidades2_)                     AS unidades
-FROM dbo.ResumenCliente rc
-JOIN dbo.LineasAlbaranCliente lin
+    SUM(lin.Unidades2_)                     AS unidades,
+    SUM(lin.Baseimponible)                  AS importe
+FROM dbo.LineasAlbaranCliente lin
+LEFT JOIN dbo.ResumenCliente rc
     ON  lin.CodigoEmpresa    = rc.CodigoEmpresa
     AND lin.EjercicioFactura = rc.EjercicioFactura
     AND lin.SerieFactura     = rc.SerieFactura
@@ -645,10 +657,10 @@ LEFT JOIN dbo.CabeceraAlbaranCliente cab
 WHERE rc.CodigoEmpresa  = @empresa
   AND rc.CodigoCliente  = @codigo
   AND rc.FechaFactura   > DATEADD(MONTH, -@meses, GETDATE())
-  AND lin.CodigoFamilia IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
 GROUP BY
     rc.EjercicioFactura, rc.SerieFactura, rc.NumeroFactura,
-    rc.FechaFactura, rc.BaseImponible,
+    rc.FechaFactura, rc.BaseImponible, rc.ImportePortes,
+    cab.zNPresupuesto, cab.zNConfirmacionPedido,
     lin.CodigoArticulo, cab.zColor
 ORDER BY rc.FechaFactura, rc.NumeroFactura;
 ";
@@ -759,8 +771,8 @@ SELECT
     lin.CodigoArticulo                      AS codarticulo,
     SUM(lin.UnidadesPedidas)                AS unidades,
     MAX(lin.zPrecioUnidad)                  AS precio
-FROM dbo.CabeceraPedidoCliente cab
-JOIN dbo.LineasPedidoCliente lin
+FROM dbo.LineasPedidoCliente lin
+LEFT JOIN dbo.CabeceraPedidoCliente cab
     ON  lin.CodigoEmpresa   = cab.CodigoEmpresa
     AND lin.EjercicioPedido = cab.EjercicioPedido
     AND lin.SeriePedido     = cab.SeriePedido
@@ -768,7 +780,6 @@ JOIN dbo.LineasPedidoCliente lin
 WHERE cab.CodigoEmpresa  = @empresa
   AND cab.CodigoCliente  = @codigo
   AND cab.Estado         = 0
-  AND lin.CodigoFamilia  IN ('1Ma','1P','1PE','1PG','1T','1To','1We','AU','S')
 GROUP BY
     cab.EjercicioPedido, cab.SeriePedido, cab.NumeroPedido, cab.FechaPedido,
     cab.zNConfirmacionPedido, cab.SuPedido, cab.zTotalPersianas, cab.zColor,

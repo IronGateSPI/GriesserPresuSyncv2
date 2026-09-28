@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -96,10 +97,30 @@ namespace GriesserPresuSync.Controllers
             }
             var snapshot = sb.ToString();
 
+            // Body codificado, construido a mano A PROPÓSITO.
+            //
+            // NO se puede usar FormUrlEncodedContent: internamente llama a
+            // Uri.EscapeDataString, que tiene un tope duro de ~65.520 caracteres
+            // POR VALOR y lanza "Invalid URI: The Uri string is too long" en cuanto
+            // un campo grande (facturacion_desglosada, facturas) lo supera. La
+            // excepción salta en cliente, antes de enviar nada al CRM.
+            //
+            // WebUtility.UrlEncode no tiene ese límite y produce el mismo formato
+            // application/x-www-form-urlencoded (espacio como '+').
+            var bodyEncoded = new StringBuilder();
+            foreach (var kv in form)
+            {
+                if (bodyEncoded.Length > 0) bodyEncoded.Append('&');
+                bodyEncoded.Append(WebUtility.UrlEncode(kv.Key))
+                           .Append('=')
+                           .Append(WebUtility.UrlEncode(kv.Value ?? string.Empty));
+            }
+
             try
             {
                 var url = BuildPutUrl(p.CodigoCliente);
-                using (var content = new FormUrlEncodedContent(form))
+                using (var content = new StringContent(
+                    bodyEncoded.ToString(), Encoding.UTF8, "application/x-www-form-urlencoded"))
                 {
                     // Timeout por request usando CancellationToken
                     using (var cts = new System.Threading.CancellationTokenSource(
@@ -229,8 +250,15 @@ namespace GriesserPresuSync.Controllers
         {
             if (d == null || d.Count == 0)
                 return "{}";
-            return JsonConvert.SerializeObject(d, Formatting.None);
+            return JsonConvert.SerializeObject(d, Formatting.None, _decimalCompacto);
         }
+
+        /// <summary>
+        /// Converter compartido para que todos los campos JSON del PUT escriban
+        /// los decimales compactos. Es stateless, así que una instancia basta.
+        /// </summary>
+        private static readonly Models.DecimalCompactoConverter _decimalCompacto
+            = new Models.DecimalCompactoConverter();
 
         /// <summary>
         /// Serializa una lista (facturas / pedidos) como array JSON compacto.
@@ -241,7 +269,7 @@ namespace GriesserPresuSync.Controllers
         {
             if (lista == null || lista.Count == 0)
                 return "[]";
-            return JsonConvert.SerializeObject(lista, Formatting.None);
+            return JsonConvert.SerializeObject(lista, Formatting.None, _decimalCompacto);
         }
 
         /// <summary>Resultado de un PUT al CRM.</summary>
