@@ -111,15 +111,41 @@ namespace GriesserPresuSync.Controllers
             {
                 var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
 
-                // 1) Codes pendientes con al menos una fila bajo MaxIntentos y
-                //    Operacion != 'D'. Usamos proyección (no materializa la entidad).
-                var codes = await db.IG_CRM_ClientesPendientes
+                // 0) Recuperación de una tanda interrumpida. El worker es de un
+                //    solo hilo y procesa un ciclo cada vez, así que cualquier fila
+                //    que siga en 'Procesando' al empezar quedó huérfana de una
+                //    ejecución que se cortó (parada del servicio, caída). Vuelve
+                //    a la cola para reintentarse.
+                var huerfanas = await db.IG_CRM_ClientesPendientes
+                    .Where(p => p.EstadoEnvio == "Procesando")
+                    .ToListAsync();
+                if (huerfanas.Count > 0)
+                {
+                    foreach (var h in huerfanas) h.EstadoEnvio = "Pendiente";
+                    await db.SaveChangesAsync();
+                    _logger.LogWarning($"{huerfanas.Count} filas quedaron en 'Procesando' de un ciclo anterior; se devuelven a Pendiente");
+                }
+
+                // 1) Reclamamos las filas ANTES de consultar Sage.
+                //    Esto elimina la carrera que hacía falta cubrir con ventanas
+                //    temporales en el trigger: mientras procesamos, la cola no
+                //    tiene pendientes para este cliente, así que un cambio que
+                //    llegue ahora encola una fila nueva y el siguiente ciclo la
+                //    recoge leyendo Sage otra vez. Como el PUT envía siempre el
+                //    estado completo, nunca se pierde información.
+                var aProcesar = await db.IG_CRM_ClientesPendientes
                     .Where(p => p.EstadoEnvio == "Pendiente"
                                 && p.Intentos < _settings.MaxIntentos
                                 && p.Operacion != "D")
-                    .Select(p => p.CodigoCliente)
-                    .Distinct()
                     .ToListAsync();
+
+                var codes = aProcesar.Select(p => p.CodigoCliente).Distinct().ToList();
+
+                if (aProcesar.Count > 0)
+                {
+                    foreach (var p in aProcesar) p.EstadoEnvio = "Procesando";
+                    await db.SaveChangesAsync();
+                }
 
                 // 2) Filas 'D' pendientes: las marcamos como Descartado
                 //    (no se envía nada al CRM porque acordamos no actuar en bajas).
@@ -241,12 +267,23 @@ namespace GriesserPresuSync.Controllers
                     // Todas las filas Pendiente de este cliente
                     var filas = await db.IG_CRM_ClientesPendientes
                         .Where(p => p.CodigoCliente == codigoCliente
-                                    && p.EstadoEnvio == "Pendiente")
+                                    && p.EstadoEnvio == "Procesando")
                         .ToListAsync();
+
+                    // El trigger de riesgo encola varias filas por el mismo cambio
+                    // (medidas hasta 26 en un minuto para el mismo cliente) y aquí
+                    // se escribía el payload íntegro en todas ellas. Con ~300 KB por
+                    // envío eso hace crecer la cola sin control: solo con el payload
+                    // antiguo de 20 KB ya había 122 MB acumulados.
+                    // En los envíos correctos guardamos el resumen; el completo se
+                    // conserva cuando falla, que es cuando hace falta para diagnosticar.
+                    var payloadAGuardar = result.Ok
+                        ? (result.PayloadResumen ?? result.Payload)
+                        : result.Payload;
 
                     foreach (var f in filas)
                     {
-                        f.PayloadEnviado = result.Payload;
+                        f.PayloadEnviado = payloadAGuardar;
                         if (result.Ok)
                         {
                             f.EstadoEnvio = "Enviado";
@@ -262,8 +299,13 @@ namespace GriesserPresuSync.Controllers
                                 f.EstadoEnvio = "Error";
                                 f.FechaProcesado = DateTime.Now;
                             }
-                            // Si aún no alcanzó MaxIntentos, queda como Pendiente
-                            // y entrará en la próxima iteración del worker.
+                            else
+                            {
+                                // La fila está reclamada como 'Procesando': hay que
+                                // devolverla explícitamente a la cola para que el
+                                // siguiente ciclo la reintente.
+                                f.EstadoEnvio = "Pendiente";
+                            }
                         }
                     }
 
@@ -643,8 +685,8 @@ SELECT
     cab.zColor                              AS color,
     SUM(lin.Unidades2_)                     AS unidades,
     SUM(lin.Baseimponible)                  AS importe
-FROM dbo.LineasAlbaranCliente lin
-LEFT JOIN dbo.ResumenCliente rc
+FROM dbo.ResumenCliente rc
+JOIN dbo.LineasAlbaranCliente lin
     ON  lin.CodigoEmpresa    = rc.CodigoEmpresa
     AND lin.EjercicioFactura = rc.EjercicioFactura
     AND lin.SerieFactura     = rc.SerieFactura
@@ -720,7 +762,10 @@ ORDER BY rc.FechaFactura, rc.NumeroFactura;
                                         Color             = SafeStr(reader, "color"),
                                         BaseImponible     = SafeDec(reader, "base_imponible") ?? 0m,
                                         ImporteTransporte = SafeDec(reader, "importe_transporte") ?? 0m,
-                                        Instalacion       = SafeDec(reader, "instalacion") ?? 0m
+                                        Instalacion       = SafeDec(reader, "instalacion") ?? 0m,
+                                        // Sage marca el sí con -1; el CRM espera 1.
+                                        // Cualquier otro valor, NULL incluido, es 0.
+                                        PedidoOnline      = SafeInt(reader, "pedido_online") == -1 ? 1 : 0
                                     };
                                     porPedido[clave] = pedido;
                                     orden.Add(clave);
@@ -768,11 +813,12 @@ SELECT
     cab.BaseImponible                       AS base_imponible,
     cab.ImportePortes                       AS importe_transporte,
     cab.zImporteInstalacion                 AS instalacion,
+    cab.IG_PedidoOnline                     AS pedido_online,
     lin.CodigoArticulo                      AS codarticulo,
     SUM(lin.UnidadesPedidas)                AS unidades,
     MAX(lin.zPrecioUnidad)                  AS precio
-FROM dbo.LineasPedidoCliente lin
-LEFT JOIN dbo.CabeceraPedidoCliente cab
+FROM dbo.CabeceraPedidoCliente cab
+JOIN dbo.LineasPedidoCliente lin
     ON  lin.CodigoEmpresa   = cab.CodigoEmpresa
     AND lin.EjercicioPedido = cab.EjercicioPedido
     AND lin.SeriePedido     = cab.SeriePedido
@@ -784,6 +830,7 @@ GROUP BY
     cab.EjercicioPedido, cab.SeriePedido, cab.NumeroPedido, cab.FechaPedido,
     cab.zNConfirmacionPedido, cab.SuPedido, cab.zTotalPersianas, cab.zColor,
     cab.BaseImponible, cab.ImportePortes, cab.zImporteInstalacion,
+    cab.IG_PedidoOnline,
     lin.CodigoArticulo
 ORDER BY cab.FechaPedido, cab.NumeroPedido;
 ";
@@ -799,7 +846,7 @@ ORDER BY cab.FechaPedido, cab.NumeroPedido;
                 var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
                 var filas = await db.IG_CRM_ClientesPendientes
                     .Where(p => p.CodigoCliente == codigoCliente
-                                && p.EstadoEnvio == "Pendiente")
+                                && p.EstadoEnvio == "Procesando")
                     .ToListAsync();
                 foreach (var f in filas)
                 {
@@ -809,6 +856,11 @@ ORDER BY cab.FechaPedido, cab.NumeroPedido;
                     {
                         f.EstadoEnvio = "Error";
                         f.FechaProcesado = DateTime.Now;
+                    }
+                    else
+                    {
+                        // Reclamada como 'Procesando': devolver a la cola.
+                        f.EstadoEnvio = "Pendiente";
                     }
                 }
                 await db.SaveChangesAsync();
@@ -822,7 +874,7 @@ ORDER BY cab.FechaPedido, cab.NumeroPedido;
                 var db = scope.ServiceProvider.GetRequiredService<MiGriesserContext>();
                 var filas = await db.IG_CRM_ClientesPendientes
                     .Where(p => p.CodigoCliente == codigoCliente
-                                && p.EstadoEnvio == "Pendiente")
+                                && p.EstadoEnvio == "Procesando")
                     .ToListAsync();
                 foreach (var f in filas)
                 {

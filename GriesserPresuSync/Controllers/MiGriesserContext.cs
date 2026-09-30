@@ -176,6 +176,13 @@ namespace GriesserPresuSync.Controllers
             public float? importe_transporte { get; set; }
             public float importe_total { get; set; }
             public bool weinor_family { get; set; }
+            /// <summary>
+            /// Pedido online (-1 sí / 0 no). Se guarda con la convención de Sage
+            /// y no como bit, porque el proceso que vuelca esta tabla de staging
+            /// a CabeceraOfertaCliente.IG_PedidoOnline hace una copia directa.
+            /// Nullable para no romper las filas ya existentes.
+            /// </summary>
+            public short? IG_PedidoOnline { get; set; }
             public string accionamiento { get; set; }
             public int i_line { get; set; }
             public string Client_ref { get; set; }

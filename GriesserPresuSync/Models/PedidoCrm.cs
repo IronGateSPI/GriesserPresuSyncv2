@@ -50,6 +50,14 @@ namespace GriesserPresuSync.Models
         [JsonProperty("instalacion")]
         public decimal Instalacion { get; set; }
 
+        /// <summary>
+        /// Pedido online: 1 si CabeceraPedidoCliente.IG_PedidoOnline = -1, y 0
+        /// en cualquier otro caso (incluido NULL). Se traduce la convención de
+        /// Sage (-1/0) a la que espera el CRM (1/0).
+        /// </summary>
+        [JsonProperty("pedido_online")]
+        public int PedidoOnline { get; set; }
+
         [JsonProperty("lineas")]
         public List<PedidoLineaCrm> Lineas { get; set; } = new List<PedidoLineaCrm>();
     }

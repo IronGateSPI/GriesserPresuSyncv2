@@ -89,13 +89,32 @@ namespace GriesserPresuSync.Controllers
             // Snapshot textual para auditoría (se guardará en PayloadEnviado).
             // No es la única fuente de verdad — es debug-friendly — porque
             // FormUrlEncodedContent ya hace su propio escape al enviar.
+            // Se construyen DOS snapshots:
+            //   - snapshot: completo, para diagnosticar cuando el envío falla.
+            //   - snapshotResumen: idéntico salvo que los tres bloques JSON
+            //     grandes se sustituyen por su tamaño. Es el que se guarda en
+            //     los envíos correctos.
+            // Motivo: el trigger de riesgo encola varias filas por el mismo
+            // cambio y el worker escribía el payload íntegro en todas. Con
+            // ~300 KB por envío eso multiplicaba el almacenamiento de la cola.
+            // El resumen conserva todos los campos escalares (nombre, NIF,
+            // dirección, riesgos, descuentos), que es lo que se audita.
             var sb = new StringBuilder();
+            var sbResumen = new StringBuilder();
             foreach (var kv in form)
             {
                 if (sb.Length > 0) sb.Append('&');
                 sb.Append(kv.Key).Append('=').Append(kv.Value);
+
+                if (sbResumen.Length > 0) sbResumen.Append('&');
+                sbResumen.Append(kv.Key).Append('=');
+                if (EsCampoVoluminoso(kv.Key))
+                    sbResumen.Append("[").Append(kv.Value?.Length ?? 0).Append(" chars]");
+                else
+                    sbResumen.Append(kv.Value);
             }
             var snapshot = sb.ToString();
+            var snapshotResumen = sbResumen.ToString();
 
             // Body codificado, construido a mano A PROPÓSITO.
             //
@@ -138,7 +157,7 @@ namespace GriesserPresuSync.Controllers
                             return new EnvioResult
                             {
                                 Ok = true,
-                                Payload = snapshot,
+                                Payload = snapshot, PayloadResumen = snapshotResumen,
                                 ResponseBody = body
                             };
                         }
@@ -146,7 +165,7 @@ namespace GriesserPresuSync.Controllers
                         return new EnvioResult
                         {
                             Ok = false,
-                            Payload = snapshot,
+                            Payload = snapshot, PayloadResumen = snapshotResumen,
                             ResponseBody = body,
                             Error = $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}"
                         };
@@ -272,12 +291,26 @@ namespace GriesserPresuSync.Controllers
             return JsonConvert.SerializeObject(lista, Formatting.None, _decimalCompacto);
         }
 
+        /// <summary>
+        /// Campos cuyo contenido es un bloque JSON que puede pesar cientos de KB.
+        /// En el snapshot de auditoría se sustituyen por su tamaño.
+        /// </summary>
+        private static bool EsCampoVoluminoso(string key)
+        {
+            return key == "facturacion_desglosada"
+                || key == "facturas"
+                || key == "pedidos";
+        }
+
         /// <summary>Resultado de un PUT al CRM.</summary>
         public class EnvioResult
         {
             public bool Ok { get; set; }
             public string Error { get; set; }
+            /// <summary>Snapshot completo. Se guarda solo cuando el envío falla.</summary>
             public string Payload { get; set; }
+            /// <summary>Snapshot sin los bloques JSON grandes. Se guarda en los envíos correctos.</summary>
+            public string PayloadResumen { get; set; }
             public string ResponseBody { get; set; }
         }
     }

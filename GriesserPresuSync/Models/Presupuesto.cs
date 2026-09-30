@@ -1,4 +1,6 @@
 ﻿using System;
+using Newtonsoft.Json;
+
 namespace GriesserPresuSync.Models
 {
     public class Presupuesto
@@ -7,6 +9,16 @@ namespace GriesserPresuSync.Models
         public string? cod_client { get; set; }
         public string? client_ref { get; set; }
         public bool weinor_family { get; set; }
+
+        /// <summary>
+        /// Indica si el presupuesto procede de un pedido online.
+        /// Se persiste en Sage como IG_PedidoOnline (-1 sí / 0 no) y viaja al
+        /// CRM en el campo "pedido_online" de los pedidos pendientes.
+        /// El converter tolera bool, 1/0 y "si"/"no" porque no está confirmado
+        /// cómo lo envía exactamente la API.
+        /// </summary>
+        [JsonConverter(typeof(SiNoBooleanConverter))]
+        public bool pedido_online { get; set; }
         public DateTime date_created { get; set; }
         public string presupuesto { get; set; }
         public int num_persianas { get; set; }

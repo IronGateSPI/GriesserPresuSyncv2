@@ -149,6 +149,10 @@ namespace GriesserPresuSync.Controllers
                 newLine.importe_total = presupuesto.importe_total;
                 //weinor_family
                 newLine.weinor_family = presupuesto.weinor_family;
+                // Pedido online: la API lo da como booleano, Sage lo espera
+                // como -1 / 0, así que la conversión se hace aquí y la tabla
+                // de staging ya guarda el valor listo para copiar.
+                newLine.IG_PedidoOnline = presupuesto.pedido_online ? (short)-1 : (short)0;
                 //mas campos
                 newLine.GH = l.gh;
                 newLine.accionamiento = presupuesto.accionamiento;
