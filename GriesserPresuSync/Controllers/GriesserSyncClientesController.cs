@@ -277,7 +277,9 @@ namespace GriesserPresuSync.Controllers
                     // antiguo de 20 KB ya había 122 MB acumulados.
                     // En los envíos correctos guardamos el resumen; el completo se
                     // conserva cuando falla, que es cuando hace falta para diagnosticar.
-                    var payloadAGuardar = result.Ok
+                    // GuardarPayloadCompleto fuerza el JSON íntegro también en los
+                    // envíos correctos, para poder revisar qué se está enviando.
+                    var payloadAGuardar = (result.Ok && !_settings.GuardarPayloadCompleto)
                         ? (result.PayloadResumen ?? result.Payload)
                         : result.Payload;
 
@@ -489,6 +491,7 @@ WHERE cli.CodigoEmpresa            = @empresa
                                 var baseimponible = SafeDec(reader, "baseimponible") ?? 0m;
                                 var unidades      = SafeDec(reader, "unidades") ?? 0m;
                                 var color         = SafeStr(reader, "color");
+                                var online        = SafeInt(reader, "pedido_online") == -1 ? 1 : 0;
 
                                 if (string.IsNullOrWhiteSpace(articulo)) continue;
 
@@ -507,16 +510,20 @@ WHERE cli.CodigoEmpresa            = @empresa
                                     {
                                         Importe  = acum.Importe  + baseimponible,
                                         Unidades = acum.Unidades + unidades,
-                                        Color    = acum.Color ?? color
+                                        Color    = acum.Color ?? color,
+                                        // Basta con que UNA de las facturas agregadas
+                                        // viniera de pedido online para marcar la entrada.
+                                        PedidoOnline = (acum.PedidoOnline == 1 || online == 1) ? 1 : 0
                                     };
                                 }
                                 else
                                 {
                                     mesDict[articulo] = new ArticuloDetalleDesglose
                                     {
-                                        Importe  = baseimponible,
-                                        Unidades = unidades,
-                                        Color    = color
+                                        Importe      = baseimponible,
+                                        Unidades     = unidades,
+                                        Color        = color,
+                                        PedidoOnline = online
                                     };
                                 }
                             }
@@ -545,6 +552,10 @@ SELECT
     MONTH(rc.FechaFactura)                  AS mes,
     lin.CodigoArticulo                      AS codarticulo,
     cab.zColor                              AS color,
+    -- MIN sobre la codificación de Sage (-1 sí / 0 no) equivale a un OR:
+    -- devuelve -1 si CUALQUIERA de las facturas agregadas fue pedido online.
+    -- Así el campo no entra en el GROUP BY y la agrupación no se parte.
+    MIN(rc.IG_PedidoOnline)                 AS pedido_online,
     SUM(lin.Unidades2_)                     AS unidades,
     SUM(lin.Baseimponible)                  AS baseimponible
 FROM dbo.ResumenCliente rc
@@ -636,7 +647,9 @@ ORDER BY
                                             : string.Empty,
                                         Fecha             = SafeFecha(reader, "fecha"),
                                         Total             = SafeDec(reader, "total") ?? 0m,
-                                        ImporteTransporte = SafeDec(reader, "importe_transporte") ?? 0m
+                                        ImporteTransporte = SafeDec(reader, "importe_transporte") ?? 0m,
+                                        // Sage marca el sí con -1; el CRM espera 1.
+                                        PedidoOnline      = SafeInt(reader, "pedido_online") == -1 ? 1 : 0
                                     };
                                     porFactura[claveInterna] = factura;
                                     orden.Add(claveInterna);
@@ -679,6 +692,7 @@ SELECT
     rc.FechaFactura                         AS fecha,
     rc.BaseImponible                        AS total,
     rc.ImportePortes                        AS importe_transporte,
+    rc.IG_PedidoOnline                      AS pedido_online,
     cab.zNPresupuesto                       AS referencia,
     cab.zNConfirmacionPedido                AS codigo_confirmacion_pedido,
     lin.CodigoArticulo                      AS codarticulo,
@@ -701,7 +715,7 @@ WHERE rc.CodigoEmpresa  = @empresa
   AND rc.FechaFactura   > DATEADD(MONTH, -@meses, GETDATE())
 GROUP BY
     rc.EjercicioFactura, rc.SerieFactura, rc.NumeroFactura,
-    rc.FechaFactura, rc.BaseImponible, rc.ImportePortes,
+    rc.FechaFactura, rc.BaseImponible, rc.ImportePortes, rc.IG_PedidoOnline,
     cab.zNPresupuesto, cab.zNConfirmacionPedido,
     lin.CodigoArticulo, cab.zColor
 ORDER BY rc.FechaFactura, rc.NumeroFactura;

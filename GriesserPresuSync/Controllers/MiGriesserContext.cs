@@ -181,8 +181,9 @@ namespace GriesserPresuSync.Controllers
             /// y no como bit, porque el proceso que vuelca esta tabla de staging
             /// a CabeceraOfertaCliente.IG_PedidoOnline hace una copia directa.
             /// Nullable para no romper las filas ya existentes.
+            /// INT, no SMALLINT: así está creada la columna en la base real.
             /// </summary>
-            public short? IG_PedidoOnline { get; set; }
+            public int? IG_PedidoOnline { get; set; }
             public string accionamiento { get; set; }
             public int i_line { get; set; }
             public string Client_ref { get; set; }

@@ -14,7 +14,7 @@ namespace GriesserPresuSync.Tests
             Assert.Equal(100, s.regs_per_page);
             Assert.Equal(1, s.page);
             Assert.Equal(1, s.id_from);
-            Assert.Equal("IG_GriesserSyncMallorquinas", s.DestinationTable);
+            Assert.Equal("IG_GriesserSyncMallor", s.DestinationTable);
         }
 
         [Fact]

@@ -46,7 +46,21 @@ namespace GriesserPresuSync.Models
         /// El histórico largo agregado sigue viajando en facturacion_desglosada.
         /// Cambiarlo NO requiere recompilar, solo reiniciar el servicio.
         /// </summary>
-        public int FacturasHistoricoMeses { get; set; } = 60;
+        public int FacturasHistoricoMeses { get; set; } = 24;
+
+        /// <summary>
+        /// Guarda en PayloadEnviado el JSON íntegro también en los envíos
+        /// correctos, no solo cuando fallan. Default false.
+        ///
+        /// Pensado para depurar: se activa, se deja correr, se mira la cola y
+        /// se vuelve a desactivar. Con la deduplicación del trigger cada cambio
+        /// genera UNA fila en lugar de una ráfaga, así que tenerlo activo un
+        /// rato cuesta ~300 KB por cambio, no los varios MB de antes.
+        ///
+        /// No conviene dejarlo puesto de forma permanente: la cola acumulaba
+        /// 122 MB solo con el payload antiguo, que era quince veces menor.
+        /// </summary>
+        public bool GuardarPayloadCompleto { get; set; } = false;
 
         // ====== Import CRM → Sage ======
         /// <summary>Activa/desactiva el worker de bajada nocturna.</summary>

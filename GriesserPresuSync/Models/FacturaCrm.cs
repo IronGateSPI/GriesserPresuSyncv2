@@ -52,6 +52,14 @@ namespace GriesserPresuSync.Models
         [JsonProperty("importe_transporte")]
         public decimal ImporteTransporte { get; set; }
 
+        /// <summary>
+        /// Pedido online: 1 / 0. Traduce ResumenCliente.IG_PedidoOnline (-1/0).
+        /// Aquí no hay ambigüedad de agregación como en facturacion_desglosada:
+        /// el dato es de la cabecera de factura y la entrada es una factura.
+        /// </summary>
+        [JsonProperty("pedido_online")]
+        public int PedidoOnline { get; set; }
+
         [JsonProperty("productos")]
         public List<FacturaProductoCrm> Productos { get; set; } = new List<FacturaProductoCrm>();
     }

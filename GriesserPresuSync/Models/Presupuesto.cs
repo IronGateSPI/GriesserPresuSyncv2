@@ -14,11 +14,16 @@ namespace GriesserPresuSync.Models
         /// Indica si el presupuesto procede de un pedido online.
         /// Se persiste en Sage como IG_PedidoOnline (-1 sí / 0 no) y viaja al
         /// CRM en el campo "pedido_online" de los pedidos pendientes.
-        /// El converter tolera bool, 1/0 y "si"/"no" porque no está confirmado
-        /// cómo lo envía exactamente la API.
+        /// La API envía normalmente 1 o null. Es ANULABLE a propósito: así el
+        /// null se deserializa de forma nativa y no dependemos de que Newtonsoft
+        /// invoque el converter sobre un token nulo, que con un bool no anulable
+        /// lanzaría "Error converting value {null} to type 'System.Boolean'" y
+        /// tumbaría el presupuesto completo.
+        /// El converter cubre además 1/0, true/false y "si"/"no".
+        /// Ausente o null se interpreta como "no es pedido online".
         /// </summary>
         [JsonConverter(typeof(SiNoBooleanConverter))]
-        public bool pedido_online { get; set; }
+        public bool? pedido_online { get; set; }
         public DateTime date_created { get; set; }
         public string presupuesto { get; set; }
         public int num_persianas { get; set; }

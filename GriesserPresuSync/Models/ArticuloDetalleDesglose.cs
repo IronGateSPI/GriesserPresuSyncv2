@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace GriesserPresuSync.Models
 {
@@ -22,5 +22,17 @@ namespace GriesserPresuSync.Models
 
         [JsonProperty("color")]
         public string Color { get; set; }
+
+        /// <summary>
+        /// Pedido online: 1 / 0. Traduce ResumenCliente.IG_PedidoOnline (-1/0).
+        ///
+        /// La entrada agrega TODAS las facturas de ese mes para ese artículo, y
+        /// unas pueden venir de pedido online y otras no. Se marca 1 si
+        /// CUALQUIERA de ellas lo era: el campo NO entra en el GROUP BY, se
+        /// resuelve con MIN() en SQL, que sobre -1/0 equivale a un OR.
+        /// Si necesitas el dato factura a factura, está en el campo "facturas".
+        /// </summary>
+        [JsonProperty("pedido_online")]
+        public int PedidoOnline { get; set; }
     }
 }

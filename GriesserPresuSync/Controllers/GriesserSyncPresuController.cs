@@ -152,7 +152,8 @@ namespace GriesserPresuSync.Controllers
                 // Pedido online: la API lo da como booleano, Sage lo espera
                 // como -1 / 0, así que la conversión se hace aquí y la tabla
                 // de staging ya guarda el valor listo para copiar.
-                newLine.IG_PedidoOnline = presupuesto.pedido_online ? (short)-1 : (short)0;
+                // '== true' cubre los tres casos: true -> -1; false y null -> 0.
+                newLine.IG_PedidoOnline = presupuesto.pedido_online == true ? -1 : 0;
                 //mas campos
                 newLine.GH = l.gh;
                 newLine.accionamiento = presupuesto.accionamiento;

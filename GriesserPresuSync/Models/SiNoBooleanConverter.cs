@@ -13,8 +13,14 @@ namespace GriesserPresuSync.Models
     /// como 1/0, y el fallo sería silencioso (excepción de deserialización que
     /// tumba el presupuesto entero).
     ///
+    /// En MiGriesser el campo viaja como 1 o como null.
+    ///
     /// Acepta: true/false, 1/0, "1"/"0", "true"/"false", "si"/"sí"/"no",
     /// "y"/"n", "s"/"n". Cualquier otra cosa, incluido null, devuelve false.
+    ///
+    /// Aun así, las propiedades que lo usen deberían declararse como bool?
+    /// para que el null se resuelva de forma nativa sin depender de que
+    /// Newtonsoft llegue a invocar este converter en ese caso.
     /// </summary>
     public class SiNoBooleanConverter : JsonConverter
     {
